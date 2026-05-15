@@ -48,6 +48,8 @@ async function main() {
   await page.waitForTimeout(500);
   await page.locator('input[placeholder*="codename"]').fill("Aster");
   await page.locator('button:has-text("Orbital Exodus"), button:has(h3:has-text("Orbital Exodus"))').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('button:has-text("Hybrid field")').first().click();
   await page.waitForTimeout(400);
   await page.screenshot({
     path: path.join(OUT_DIR, "02-lobby.png"),
@@ -59,6 +61,7 @@ async function main() {
   const created = await postJSON(`${BASE}/api/room`, {
     name: "Aster",
     scenarioId: "memory-winter",
+    interactionMode: "crisis",
   });
   const code = created.code;
   const host = created.playerId;
@@ -196,6 +199,45 @@ async function main() {
   await page.waitForTimeout(2000);
   await page.screenshot({
     path: path.join(OUT_DIR, "07-duel-ai-room.png"),
+    fullPage: false,
+  });
+
+  // 8. Hybrid field — humans + synthetic seats, Hybrid channel, social graph rail
+  console.log("→ hybrid room");
+  const hyb = await postJSON(`${BASE}/api/room`, {
+    name: "Nava",
+    scenarioId: "memory-winter",
+    interactionMode: "hybrid",
+  });
+  const hybCode = hyb.code;
+  const hybHost = hyb.playerId;
+  const hybJoin = await postJSON(`${BASE}/api/room/join`, { code: hybCode, name: "Vex" });
+  await postJSON(`${BASE}/api/room/${hybCode}/start`, { playerId: hybHost });
+  await postJSON(`${BASE}/api/room/${hybCode}/message`, {
+    playerId: hybHost,
+    text: "Two humans walk in; the table still fills to six. Name the fracture you want on the record.",
+  });
+  await postJSON(`${BASE}/api/room/${hybCode}/message`, {
+    playerId: hybJoin.playerId,
+    text: "Then we stop pretending the synthetic seats are decorative. They vote in the tension, not in our self-image.",
+  });
+  await postJSON(`${BASE}/api/room/${hybCode}/event`, {});
+  await page.addInitScript(
+    ([c, pid, label]) => {
+      window.sessionStorage.setItem(`ate:${c}:playerId`, pid);
+      window.sessionStorage.setItem(`ate:${c}:name`, label);
+    },
+    [hybCode, hybHost, "Nava"]
+  );
+  await page.goto(`${BASE}/room/${hybCode}`, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(
+    () => /Hybrid field/.test(document.body?.innerText ?? ""),
+    { timeout: 15000 }
+  );
+  await page.waitForSelector("text=Trust / influence", { timeout: 15000 });
+  await page.waitForTimeout(2200);
+  await page.screenshot({
+    path: path.join(OUT_DIR, "08-hybrid-room.png"),
     fullPage: false,
   });
 

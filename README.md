@@ -23,17 +23,17 @@ The product opens with a single thesis: tension produces strategy, not prompts.
 ![Landing page](./public/screenshots/01-landing.png)
 
 ### Lobby — modes, scenarios, open a room
-Pick **Solo · multi-agent field** (primary entry), **Hybrid field** (humans +
+Pick **Solo · multi-agent field** (default), **Hybrid field** (humans +
 synthetic seats), **N:N crisis**, **strategic duel**
 (two humans or **1:1 vs AI adversary**), or **1:N influence**; choose one of three scenarios; then create or join with a
-codename. The **World** badge links to the persistent chronicle.
+codename. The capture below has **Hybrid field** selected as an example. The **World** badge links to the persistent chronicle.
 
 ![Lobby — interaction modes + scenario cards](./public/screenshots/02-lobby.png)
 
 ### Live negotiation room (crisis layout)
 This capture is **crisis mode** (2–6 humans): tension meter, role dossier
 (public brief + hidden leverage), realtime **Negotiation channel**, AI-injected
-event feed, decision framework, and live player presence. **Duel** switches to a
+event feed, **trust / influence** sketch on the right rail, decision framework, and live player presence. **Solo** uses **Multi-agent field**; **hybrid** uses **Hybrid field** (see dedicated capture below). **Duel** switches to a
 two-column dossier layout and labels the channel **Duel channel**; **influence**
 uses **Influence chamber** and highlights a primary speaker in the roster.
 
@@ -59,6 +59,11 @@ Single human seat plus a seated **Adversary**; opening pressure and the same
 commit → reflection arc as human duels.
 
 ![Duel room — 1:1 vs AI adversary](./public/screenshots/07-duel-ai-room.png)
+
+### Hybrid field (humans + synthetic seats)
+Two humans in lobby; on start the engine fills remaining scenario seats with synthetic agents. Shared **Hybrid field** channel plus the same **trust / influence** rail and event/decision stack as crisis play.
+
+![Hybrid room — humans and synthetic seats](./public/screenshots/08-hybrid-room.png)
 
 ---
 
@@ -169,7 +174,7 @@ ai-strategic-tension/
 │   ├── world-memory.ts          # In-memory world + reputation
 │   └── world-persist.ts         # Optional Supabase mirror
 ├── supabase/migrations/         # Postgres schema (optional)
-├── public/screenshots/          # README images (`01`–`07`; run capture script to refresh)
+├── public/screenshots/          # README images (`01`–`08`; run capture script to refresh)
 └── scripts/capture-screenshots.mjs
 ```
 
@@ -244,7 +249,11 @@ npx playwright install chromium
 node scripts/capture-screenshots.mjs
 ```
 
-Output lands in `public/screenshots/` (`01`–`07`, including **world** and **AI duel**).
+If port **3010** is already in use, start Next on another port (e.g. **3020**) and point the script at it:  
+`$env:SHOT_BASE="http://localhost:3020"; node scripts/capture-screenshots.mjs` (PowerShell) or  
+`SHOT_BASE=http://localhost:3020 node scripts/capture-screenshots.mjs` (bash).
+
+Output lands in `public/screenshots/` (`01`–`08`, including **world**, **AI duel**, and **hybrid**).
 
 ---
 
