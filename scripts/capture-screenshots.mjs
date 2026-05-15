@@ -51,7 +51,7 @@ async function main() {
   await page.waitForTimeout(400);
   await page.screenshot({
     path: path.join(OUT_DIR, "02-lobby.png"),
-    fullPage: false,
+    fullPage: true,
   });
 
   // Build a live room via API so the screenshots have rich content.
@@ -101,7 +101,13 @@ async function main() {
     [code, host]
   );
   await page.goto(`${BASE}/room/${code}`, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector('text=Negotiation channel', { timeout: 15000 });
+  await page.waitForFunction(
+    () =>
+      /Negotiation channel|Duel channel|Influence chamber/.test(
+        document.body?.innerText ?? ""
+      ),
+    { timeout: 15000 }
+  );
   await page.waitForTimeout(2500);
   await page.screenshot({
     path: path.join(OUT_DIR, "03-room.png"),
@@ -147,6 +153,50 @@ async function main() {
   await page.screenshot({
     path: path.join(OUT_DIR, "05-reflection-full.png"),
     fullPage: true,
+  });
+
+  // 6. Persistent world (uses timeline/reputation from the committed session above)
+  console.log("→ world");
+  await page.goto(`${BASE}/world`, { waitUntil: "networkidle" });
+  await page.locator("h1", { hasText: "Persistent world" }).waitFor({ timeout: 15000 });
+  await page.waitForTimeout(800);
+  await page.screenshot({
+    path: path.join(OUT_DIR, "06-world.png"),
+    fullPage: false,
+  });
+
+  // 7. Duel vs AI — two-column layout + Duel channel
+  console.log("→ duel AI room");
+  const duelCreated = await postJSON(`${BASE}/api/room`, {
+    name: "Rook",
+    scenarioId: "memory-winter",
+    interactionMode: "duel",
+    aiOpponentEnabled: true,
+  });
+  const duelCode = duelCreated.code;
+  const duelHost = duelCreated.playerId;
+  await postJSON(`${BASE}/api/room/${duelCode}/start`, { playerId: duelHost });
+  await postJSON(`${BASE}/api/room/${duelCode}/message`, {
+    playerId: duelHost,
+    text: "One clean concession. Then we both walk without headlines.",
+  });
+  await page.addInitScript(
+    ([c, pid, label]) => {
+      window.sessionStorage.setItem(`ate:${c}:playerId`, pid);
+      window.sessionStorage.setItem(`ate:${c}:name`, label);
+    },
+    [duelCode, duelHost, "Rook"]
+  );
+  await page.goto(`${BASE}/room/${duelCode}`, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(
+    () =>
+      /Duel channel/.test(document.body?.innerText ?? ""),
+    { timeout: 15000 }
+  );
+  await page.waitForTimeout(2000);
+  await page.screenshot({
+    path: path.join(OUT_DIR, "07-duel-ai-room.png"),
+    fullPage: false,
   });
 
   await browser.close();

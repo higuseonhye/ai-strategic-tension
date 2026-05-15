@@ -19,18 +19,21 @@ The product opens with a single thesis: tension produces strategy, not prompts.
 
 ![Landing page](./public/screenshots/01-landing.png)
 
-### Lobby — choose your crisis
-Three pre-authored scenarios. Each one assigns secret roles, hidden goals, and
-exactly one irreversible final decision.
+### Lobby — modes, scenarios, open a room
+Pick **N:N crisis**, **strategic duel** (two humans or **1:1 vs AI adversary**),
+or **1:N influence**; choose one of three scenarios; then create or join with a
+codename. The **World** badge links to the persistent chronicle.
 
-![Lobby with scenario picker](./public/screenshots/02-lobby.png)
+![Lobby — interaction modes + scenario cards](./public/screenshots/02-lobby.png)
 
-### Live negotiation room
-The core of the product. Six panels at a glance: tension meter, role dossier
-(public brief + hidden leverage), realtime negotiation channel, AI-injected
-event feed, decision framework, and live player presence.
+### Live negotiation room (crisis layout)
+This capture is **crisis mode** (2–6 humans): tension meter, role dossier
+(public brief + hidden leverage), realtime **Negotiation channel**, AI-injected
+event feed, decision framework, and live player presence. **Duel** switches to a
+two-column dossier layout and labels the channel **Duel channel**; **influence**
+uses **Influence chamber** and highlights a primary speaker in the roster.
 
-![Live negotiation room](./public/screenshots/03-room.png)
+![Live room — crisis negotiation](./public/screenshots/03-room.png)
 
 ### Strategic Reflection Report
 After the irreversible decision is committed, the AI generates a cinematic
@@ -40,6 +43,18 @@ patterns, turning points, hidden assumptions, verdict, and a per-player read.
 ![Reflection report — top](./public/screenshots/04-reflection.png)
 
 ![Reflection report — full](./public/screenshots/05-reflection-full.png)
+
+### Persistent world (`/world`)
+Civilization meters, timeline lines from committed sessions, reputation tags,
+and (when Supabase is configured) merged **player legacy** snippets.
+
+![Persistent world overview](./public/screenshots/06-world.png)
+
+### Strategic duel vs AI (beta)
+Single human seat plus a seated **Adversary**; opening pressure and the same
+commit → reflection arc as human duels.
+
+![Duel room — 1:1 vs AI adversary](./public/screenshots/07-duel-ai-room.png)
 
 ---
 
@@ -149,6 +164,7 @@ ai-strategic-tension/
 │   ├── world-memory.ts          # In-memory world + reputation
 │   └── world-persist.ts         # Optional Supabase mirror
 ├── supabase/migrations/         # Postgres schema (optional)
+├── public/screenshots/          # README images (`01`–`07`; run capture script to refresh)
 └── scripts/capture-screenshots.mjs
 ```
 
@@ -223,7 +239,7 @@ npx playwright install chromium
 node scripts/capture-screenshots.mjs
 ```
 
-Output lands in `public/screenshots/`.
+Output lands in `public/screenshots/` (`01`–`07`, including **world** and **AI duel**).
 
 ---
 
