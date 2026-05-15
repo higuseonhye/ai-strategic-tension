@@ -4,17 +4,47 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SCENARIOS } from "@/lib/scenarios";
-import type { ScenarioId } from "@/lib/types";
+import type { InteractionMode, ScenarioId } from "@/lib/types";
 import { ScenarioCard } from "@/components/scenario-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+const MODE_OPTIONS: {
+  id: InteractionMode;
+  title: string;
+  body: string;
+  disabled?: boolean;
+}[] = [
+  {
+    id: "crisis",
+    title: "N:N crisis",
+    body: "2–6 players. Alliances, leaks, reversals.",
+  },
+  {
+    id: "duel",
+    title: "Strategic duel",
+    body: "Exactly 2. Bilateral brinkmanship.",
+  },
+  {
+    id: "influence",
+    title: "1:N influence",
+    body: "2–6. Fragment a room from one lectern.",
+  },
+  {
+    id: "hidden_faction",
+    title: "Hidden AI faction",
+    body: "Reserved — asymmetry lab.",
+    disabled: true,
+  },
+];
+
 export default function LobbyPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId>(SCENARIOS[0].id);
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("crisis");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState<"create" | "join" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +57,7 @@ export default function LobbyPage() {
       const res = await fetch("/api/room", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, scenarioId }),
+        body: JSON.stringify({ name, scenarioId, interactionMode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create room");
@@ -66,12 +96,19 @@ export default function LobbyPage() {
   }
 
   return (
-    <main className="container mx-auto max-w-6xl px-6 py-12">
-      <header className="flex items-center justify-between">
+    <main className="container mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <Link href="/" className="text-sm uppercase tracking-[0.2em] text-mutedForeground hover:text-foreground">
           ← Strategic Tension Engine
         </Link>
-        <Badge tone="muted">Lobby</Badge>
+        <div className="flex items-center gap-2">
+          <Link href="/world">
+            <Badge tone="accent" className="cursor-pointer px-2 py-1 hover:opacity-90">
+              World
+            </Badge>
+          </Link>
+          <Badge tone="muted">Lobby</Badge>
+        </div>
       </header>
 
       <div className="mt-10 grid gap-8 md:grid-cols-[1fr_360px]">
@@ -83,6 +120,31 @@ export default function LobbyPage() {
             Each scenario assigns secret roles, hidden goals, and one
             irreversible ending. None of them have a clean answer.
           </p>
+
+          <div className="mt-6">
+            <h2 className="text-[11px] uppercase tracking-[0.2em] text-mutedForeground">
+              Interaction mode
+            </h2>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {MODE_OPTIONS.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  disabled={m.disabled}
+                  onClick={() => !m.disabled && setInteractionMode(m.id)}
+                  className={`rounded-xl border p-4 text-left transition touch-manipulation ${
+                    interactionMode === m.id
+                      ? "border-primary shadow-[0_0_0_1px_hsl(8_90%_58%/0.5)]"
+                      : "border-white/10 hover:border-white/25"
+                  } ${m.disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                >
+                  <div className="text-sm font-semibold">{m.title}</div>
+                  <div className="mt-1 text-xs text-mutedForeground">{m.body}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {SCENARIOS.map((s) => (
               <ScenarioCard

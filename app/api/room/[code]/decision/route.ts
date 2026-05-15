@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { commitDecision, recordVote, requireRoom, setPhase } from "@/lib/store";
+import { persistSessionWorldOutcome } from "@/lib/world-persist";
 
 export const runtime = "nodejs";
 
@@ -25,6 +26,8 @@ export async function POST(
         return NextResponse.json({ error: "Only host may commit final decision" }, { status: 403 });
       }
       commitDecision(room.code, body.choice);
+      const after = requireRoom(params.code);
+      await persistSessionWorldOutcome(after);
       return NextResponse.json({ ok: true, committed: true });
     }
 

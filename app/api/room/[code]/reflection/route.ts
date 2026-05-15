@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { attachReflection, requireRoom } from "@/lib/store";
 import { generateReflection } from "@/lib/ai";
+import { bumpPlayerLegacyFromReflection } from "@/lib/world-memory";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,6 +20,7 @@ export async function POST(
     }
     const reflection = await generateReflection(room);
     attachReflection(room.code, reflection);
+    bumpPlayerLegacyFromReflection(requireRoom(params.code));
     return NextResponse.json({ reflection });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";

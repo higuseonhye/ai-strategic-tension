@@ -1,5 +1,12 @@
 export type ScenarioId = "memory-winter" | "orbital-exodus" | "sovereign-compute";
 
+/** Room layout: crisis = flagship N:N; duel / influence = alternate pressure shapes. */
+export type InteractionMode =
+  | "crisis"
+  | "duel"
+  | "influence"
+  | "hidden_faction";
+
 export interface Role {
   id: string;
   name: string;
@@ -89,6 +96,8 @@ export interface RoomState {
   votes: Vote[];
   finalChoice?: string;
   reflection?: ReflectionReport;
+  /** Negotiation architecture; default crisis. */
+  interactionMode: InteractionMode;
 }
 
 export interface ReflectionReport {

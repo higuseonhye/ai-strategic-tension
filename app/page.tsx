@@ -27,8 +27,13 @@ export default function LandingPage() {
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-3">
           <Link href="/lobby">
-            <Button size="lg" className="px-7">
+            <Button size="lg" className="min-h-12 px-7 touch-manipulation">
               Enter the lobby →
+            </Button>
+          </Link>
+          <Link href="/world">
+            <Button size="lg" variant="outline" className="min-h-12 touch-manipulation">
+              Living world →
             </Button>
           </Link>
           <a

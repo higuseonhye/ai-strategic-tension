@@ -68,14 +68,27 @@ entire situation changed.”*
 
 ## Gameplay loop
 
-1. Players enter a room (2–6 players)
+1. Players enter a room (**crisis / influence:** 2–6, **duel:** exactly 2)
 2. AI assigns secret roles, public briefs, and hidden leverage
 3. Realtime negotiation begins on a public channel
 4. AI injects destabilizing events (leaks, ultimatums, reversals, ruptures)
 5. Tension rises; phase auto-progresses from negotiation → escalation → endgame
 6. Final decision framework appears; every player votes
-7. **Host commits the irreversible decision**
-8. AI generates a Strategic Reflection Report
+7. **Host commits the irreversible decision** — the **persistent world** records a timeline line + meter deltas
+8. AI generates a Strategic Reflection Report (and narrative **reputation tags** accrue for this instance)
+
+### Persistent world & modes
+
+- **Living world** — [`/world`](./app/world/page.tsx) shows civilization meters,
+  public timeline (“Session 1842 triggered …”), and reputation tags (no XP /
+  coins). See **[docs/PERSISTENT_WORLD.md](./docs/PERSISTENT_WORLD.md)** for the
+  full product direction.
+- **Interaction modes** (lobby): **N:N crisis** (2–6), **strategic duel**
+  (exactly 2), **1:N influence** (2–6, framing). *Hidden AI faction* is gated
+  until abuse controls exist.
+- **Supabase (optional)** — apply `supabase/migrations/*.sql`, then set
+  `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` so session commits mirror to
+  Postgres; `GET /api/world` prefers DB when seeded.
 
 ---
 
@@ -105,10 +118,12 @@ host nation goes underground, oceanic, alliance-dependent, or vanishes.
 ai-strategic-tension/
 ├── app/
 │   ├── page.tsx                 # Landing
-│   ├── lobby/page.tsx           # Scenario picker + create/join
+│   ├── lobby/page.tsx           # Modes + scenario picker + create/join
+│   ├── world/page.tsx           # Persistent world (mobile-first)
 │   ├── room/[code]/page.tsx     # Live negotiation interface
 │   ├── room/[code]/reflection/page.tsx
 │   └── api/
+│       ├── world/route.ts       # GET world metrics + timeline + legacy
 │       ├── room/route.ts        # POST create
 │       ├── room/join/route.ts   # POST join
 │       └── room/[code]/
@@ -116,15 +131,22 @@ ai-strategic-tension/
 │           ├── start/route.ts   # POST start (host only)
 │           ├── message/route.ts # POST chat
 │           ├── event/route.ts   # POST AI-generated event
-│           ├── decision/route.ts# POST vote / commit (host only)
+│           ├── decision/route.ts# POST vote / commit → world persist
 │           ├── reflection/route.ts
 │           └── stream/route.ts  # SSE realtime stream
-├── components/                  # UI primitives + composite panels
+├── components/
+├── docs/
+│   └── PERSISTENT_WORLD.md      # v2 direction + implementation notes
 ├── lib/
-│   ├── scenarios.ts             # 3 authored scenarios
-│   ├── store.ts                 # In-memory room store + event bus
-│   ├── ai.ts                    # OpenAI client + mock fallback
-│   └── types.ts
+│   ├── scenarios.ts
+│   ├── store.ts
+│   ├── ai.ts
+│   ├── types.ts                 # InteractionMode on RoomState
+│   ├── world-types.ts
+│   ├── world-outcome.ts         # Deterministic narrative + meter deltas
+│   ├── world-memory.ts          # In-memory world + reputation
+│   └── world-persist.ts         # Optional Supabase mirror
+├── supabase/migrations/         # Postgres schema (optional)
 └── scripts/capture-screenshots.mjs
 ```
 
@@ -161,6 +183,9 @@ Open <http://localhost:3000>.
 | `OPENAI_API_KEY` | Live AI event + reflection generation | unset → uses authored fallbacks |
 | `OPENAI_MODEL`   | Override model | `gpt-4o-mini` |
 | `ANTHROPIC_API_KEY` | Reserved for Anthropic provider (not required) | — |
+| `SUPABASE_URL` | Project URL — enables durable world writes + `GET /api/world` DB read | unset |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key for `world_events` / `world_metrics` | unset |
+| `WORLD_ID` | UUID of the row in `public.worlds` | `00000000-0000-0000-0000-000000000001` |
 
 If `OPENAI_API_KEY` is absent the platform still runs end-to-end: events are
 drawn from each scenario's authored event seeds, and reflections are assembled

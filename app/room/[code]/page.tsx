@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getScenario } from "@/lib/scenarios";
-import type { Phase } from "@/lib/types";
+import type { InteractionMode, Phase, RoomState } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -24,6 +24,13 @@ const PHASE_LABEL: Record<Phase, string> = {
   endgame: "Endgame",
   decision: "Decision",
   reflection: "Reflection",
+};
+
+const MODE_LABEL: Record<InteractionMode, string> = {
+  crisis: "N:N crisis",
+  duel: "Strategic duel",
+  influence: "1:N influence",
+  hidden_faction: "Hidden faction",
 };
 
 export default function RoomPage({ params }: { params: { code: string } }) {
@@ -89,6 +96,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
             {connected ? "Live" : "Reconnecting"}
           </Badge>
           <Badge tone="muted">{PHASE_LABEL[room.phase]}</Badge>
+          <Badge tone="accent">{MODE_LABEL[room.interactionMode]}</Badge>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-mutedForeground">
@@ -105,7 +113,10 @@ export default function RoomPage({ params }: { params: { code: string } }) {
               Copy
             </button>
           </div>
-          <PlayerCount players={room.players} />
+          <PlayerCount
+            players={room.players}
+            max={room.interactionMode === "duel" ? 2 : 6}
+          />
         </div>
       </header>
 
@@ -138,12 +149,17 @@ function LobbyView({
 }: {
   code: string;
   isHost: boolean;
-  room: ReturnType<typeof getScenario> extends infer _ ? any : any; // unused
+  room: RoomState;
   selfId: string;
   scenarioTitle: string;
 }) {
   const [starting, setStarting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const cap = room.interactionMode === "duel" ? 2 : 6;
+  const canStart =
+    room.interactionMode === "duel"
+      ? room.players.length === 2
+      : room.players.length >= 2;
 
   async function start() {
     setStarting(true);
@@ -170,9 +186,9 @@ function LobbyView({
           <CardHeader>
             <CardTitle>{scenarioTitle} — pre-briefing</CardTitle>
             <CardDescription>
-              Share the room code with up to five other players. Roles are
-              assigned the moment the host starts the session, and they are
-              irreversible.
+              Share the room code with up to {cap - 1} other player
+              {cap > 2 ? "s" : ""}. Roles are assigned the moment the host
+              starts the session, and they are irreversible.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -182,8 +198,9 @@ function LobbyView({
               </p>
               <p className="mt-1 font-mono text-5xl tracking-[0.18em]">{code}</p>
               <p className="mt-3 text-xs text-mutedForeground">
-                The room is live the moment two players are present. Start it
-                with as few as two — every scenario scales.
+                {room.interactionMode === "duel"
+                  ? "Duel mode: exactly two humans. No spectators."
+                  : "The room is live once two players are present. Start with as few as two — every scenario scales."}
               </p>
             </div>
           </CardContent>
@@ -224,11 +241,14 @@ function LobbyView({
           <CardHeader>
             <CardTitle>Players in this room</CardTitle>
             <CardDescription>
-              {(room as any).players.length}/6 — minimum 2 to start.
+              {room.players.length}/{cap} —{" "}
+              {room.interactionMode === "duel"
+                ? "need exactly 2 to start duel."
+                : "minimum 2 to start."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <PlayerList room={room as any} selfId={selfId} />
+            <PlayerList room={room} selfId={selfId} />
           </CardContent>
         </Card>
 
@@ -243,7 +263,7 @@ function LobbyView({
             {isHost ? (
               <Button
                 onClick={start}
-                disabled={starting || (room as any).players.length < 2}
+                disabled={starting || !canStart}
                 size="lg"
                 className="w-full"
               >

@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import type {
   ChatMessage,
+  InteractionMode,
   Phase,
   Player,
   RoomState,
@@ -47,6 +48,7 @@ export function subscribe(code: string, listener: (room: RoomState) => void) {
 export function createRoom(opts: {
   hostName: string;
   scenarioId: ScenarioId;
+  interactionMode?: InteractionMode;
 }): { room: RoomState; playerId: string } {
   const scenario = getScenario(opts.scenarioId);
   if (!scenario) throw new Error(`Unknown scenario: ${opts.scenarioId}`);
@@ -76,6 +78,7 @@ export function createRoom(opts: {
     events: [],
     messages: [],
     votes: [],
+    interactionMode: opts.interactionMode ?? "crisis",
   };
 
   store.rooms.set(code, room);
@@ -88,7 +91,8 @@ export function joinRoom(opts: {
   name: string;
 }): { room: RoomState; playerId: string } {
   const room = requireRoom(opts.code);
-  if (room.players.length >= 6) throw new Error("Room is full (max 6).");
+  const cap = maxPlayersForMode(room.interactionMode);
+  if (room.players.length >= cap) throw new Error(`Room is full (max ${cap}).`);
   if (room.phase !== "lobby") throw new Error("Game already started.");
 
   const id = shortId();
@@ -131,7 +135,13 @@ export function startGame(code: string) {
   const room = requireRoom(code);
   const scenario = getScenario(room.scenarioId);
   if (!scenario) throw new Error("Scenario missing");
-  if (room.players.length < 2) throw new Error("Need at least 2 players.");
+  const minP = minPlayersForMode(room.interactionMode);
+  if (room.players.length < minP) {
+    throw new Error(`Need at least ${minP} players for this mode.`);
+  }
+  if (room.interactionMode === "duel" && room.players.length !== 2) {
+    throw new Error("Duel mode requires exactly 2 players.");
+  }
 
   const shuffled = [...scenario.roles].sort(() => Math.random() - 0.5);
   room.players.forEach((p, i) => {
@@ -247,5 +257,27 @@ export function purgeStale() {
         (p) => now - p.lastSeenAt < PRESENCE_TTL_MS * 30
       );
     }
+  }
+}
+
+function maxPlayersForMode(mode: InteractionMode): number {
+  switch (mode) {
+    case "duel":
+      return 2;
+    case "influence":
+      return 6;
+    case "hidden_faction":
+      return 6;
+    default:
+      return 6;
+  }
+}
+
+function minPlayersForMode(mode: InteractionMode): number {
+  switch (mode) {
+    case "duel":
+      return 2;
+    default:
+      return 2;
   }
 }

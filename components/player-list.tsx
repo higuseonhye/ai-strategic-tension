@@ -55,10 +55,16 @@ export function PlayerList({
   );
 }
 
-export function PlayerCount({ players }: { players: Player[] }) {
+export function PlayerCount({
+  players,
+  max = 6,
+}: {
+  players: Player[];
+  max?: number;
+}) {
   return (
     <span className="font-mono text-xs text-mutedForeground">
-      {players.length}/6
+      {players.length}/{max}
     </span>
   );
 }

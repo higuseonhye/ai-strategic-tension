@@ -9,6 +9,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -18,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen antialiased">
+      <body className="min-h-[100dvh] min-h-screen touch-manipulation antialiased pb-[max(0px,env(safe-area-inset-bottom))]">
         <div className="pointer-events-none fixed inset-0 -z-10 grid-backdrop" />
         <div className="pointer-events-none fixed inset-0 -z-10 noise" />
         {children}
