@@ -58,12 +58,14 @@ The system must support multiple **interaction structures** over time:
 | **Solo** | One human vs **multiple** seated AI agents (hidden goals, asymmetric info); agents may react to each other — **primary entry** for solo cognitive load. |
 | **User vs single AI** | 1:1 duel (implemented as duel + optional AI adversary). |
 | **User vs user** | Multiplayer crisis / influence — AI as facilitator + pressure designer. |
-| **Hybrid** | Humans + multiple AI agents simultaneously (long-term; not fully shipped). |
+| **Hybrid** | **Shipped (MVP):** 2–6 humans in lobby; on start, unused scenario seats become **synthetic agents** in the same channel. Inter-agent lines can fire without a human turn (throttled). Heuristic **trust / influence edges** update from whispers, reply chains, GM events, and synthetic traffic (`lib/social-graph.ts`). |
 
 ### (3) State layer
 
-Tracks tension, negotiation history, votes, phase, roles, and room topology.
-Trust / influence graphs are **directional roadmap**, not yet first-class data.
+Tracks tension, negotiation history, votes, phase, roles, room topology, and a
+**v1 heuristic social sketch**: directed `socialGraph` edges (trust / influence)
+mutated from messages and events — not a full graph database, but first-class
+room state for UI and future persistence.
 
 ### (4) Outcome layer
 
@@ -115,10 +117,12 @@ player legacy in Supabase. **No XP, no coins.**
 
 1. **Solo mode** — multi-agent seated AIs, tension loop, same outcome layer as
    multiplayer.  
-2. **Multiplayer** on the same engine (crisis / influence / duel).  
-3. **AI as designer + participant** — GM events + seated agents (duel adversary,
-   solo cohort).  
-4. **Every session** — irreversible decision + reflection.  
+2. **Hybrid field (MVP)** — humans + synthetic seats at one table; inter-agent
+   banter; heuristic trust/influence edges.  
+3. **Multiplayer** on the same engine (crisis / influence / duel).  
+4. **AI as designer + participant** — GM events + seated agents (duel adversary,
+   solo / hybrid cohort).  
+5. **Every session** — irreversible decision + reflection.  
 
 ---
 

@@ -13,6 +13,8 @@ import { randomRoomCode, shortId } from "./utils";
 import { AI_DUEL_PLAYER_ID } from "./mode-utils";
 import { influenceFrameCopy } from "./influence-copy";
 import { soloFieldFrameCopy } from "./solo-copy";
+import { hybridFieldFrameCopy } from "./hybrid-copy";
+import { recordSocialSignalFromMessage, recordSocialSignalOnEvent } from "./social-graph";
 
 type GlobalShape = {
   rooms: Map<string, RoomState>;
@@ -87,6 +89,7 @@ export function createRoom(opts: {
     votes: [],
     interactionMode: mode,
     aiOpponentEnabled: aiOn ? true : undefined,
+    socialGraph: [],
   };
 
   store.rooms.set(code, room);
@@ -173,6 +176,37 @@ export function startGame(code: string) {
         roleId: role.id,
       });
     }
+  } else if (room.interactionMode === "hybrid") {
+    const humans = room.players.filter((p) => !p.isAi);
+    if (humans.length < 2) {
+      throw new Error("Hybrid mode needs at least two human players.");
+    }
+    if (room.players.some((p) => p.isAi)) {
+      throw new Error("Synthetic seats are injected only when the session starts.");
+    }
+    const roles = [...scenario.roles].sort(() => Math.random() - 0.5);
+    const seatCount = Math.min(6, roles.length);
+    if (humans.length > seatCount) {
+      throw new Error(
+        `This scenario tables ${seatCount} seats; fewer humans must leave or pick another scenario.`
+      );
+    }
+    humans.forEach((p, i) => {
+      p.roleId = roles[i]!.id;
+    });
+    for (let h = humans.length; h < seatCount; h++) {
+      const role = roles[h]!;
+      room.players.push({
+        id: `ate-hyb-${shortId()}`,
+        name:
+          role.archetype.length > 26 ? `${role.archetype.slice(0, 24)}…` : role.archetype,
+        joinedAt: Date.now(),
+        lastSeenAt: Date.now(),
+        isHost: false,
+        isAi: true,
+        roleId: role.id,
+      });
+    }
   } else if (room.interactionMode === "duel" && room.aiOpponentEnabled) {
     if (room.players.length !== 1) {
       throw new Error("AI duel requires exactly one human player in the room.");
@@ -192,7 +226,7 @@ export function startGame(code: string) {
     throw new Error("Duel mode requires exactly 2 human players.");
   }
 
-  if (room.interactionMode !== "solo") {
+  if (room.interactionMode !== "solo" && room.interactionMode !== "hybrid") {
     const shuffled = [...scenario.roles].sort(() => Math.random() - 0.5);
     room.players.forEach((p, i) => {
       p.roleId = shuffled[i % shuffled.length]!.id;
@@ -265,6 +299,35 @@ export function startGame(code: string) {
     }
   }
 
+  if (room.interactionMode === "hybrid") {
+    const frame = hybridFieldFrameCopy(room.scenarioId);
+    room.events.push({
+      id: shortId(),
+      at: Date.now(),
+      kind: "ultimatum",
+      title: frame.title,
+      body: frame.body,
+      delta: 5,
+    });
+    const ais = room.players.filter((p) => p.isAi);
+    if (ais[0] && ais[1]) {
+      room.messages.push({
+        id: shortId(),
+        at: Date.now(),
+        playerId: ais[0].id,
+        playerName: ais[0].name,
+        text: "Humans are in the channel now — good. We were about to mistake silence for consensus.",
+      });
+      room.messages.push({
+        id: shortId(),
+        at: Date.now(),
+        playerId: ais[1].id,
+        playerName: ais[1].name,
+        text: "Consensus is a lie until stakes are named. Someone human: break the politeness.",
+      });
+    }
+  }
+
   emit(code, room);
 }
 
@@ -289,6 +352,7 @@ export function advancePhase(code: string) {
 export function appendMessage(code: string, msg: ChatMessage) {
   const room = requireRoom(code);
   room.messages.push(msg);
+  recordSocialSignalFromMessage(room, msg);
   if (room.messages.length > 500) room.messages.splice(0, room.messages.length - 500);
   emit(code, room);
 }
@@ -307,7 +371,11 @@ export function appendEvent(code: string, event: TensionEvent) {
   if (room.tension >= 88 && room.phase === "escalation") {
     room.phase = "endgame";
   }
+  recordSocialSignalOnEvent(room);
   emit(code, room);
+  void import("./inter-agent-reply").then((m) =>
+    m.queueInterAgentBanterIfNeeded(code, 0.42)
+  );
 }
 
 export function setTension(code: string, value: number) {

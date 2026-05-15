@@ -38,6 +38,11 @@ const MODE_OPTIONS: {
     body: "2–6. Fragment a room from one lectern.",
   },
   {
+    id: "hybrid",
+    title: "Hybrid field",
+    body: "2–6 humans + synthetic seats fill unused scenario roles on start.",
+  },
+  {
     id: "hidden_faction",
     title: "Hidden AI faction",
     body: "Reserved — asymmetry lab.",

@@ -213,12 +213,17 @@ function mockReflection(room: RoomState, scenario: Scenario): ReflectionReport {
   const finalChoice = room.finalChoice ?? "no agreement";
 
   const perPlayer = room.players.map((p) => {
-    if (p.isAi && room.interactionMode === "solo") {
+    if (p.isAi && (room.interactionMode === "solo" || room.interactionMode === "hybrid")) {
       return {
         playerName: p.name,
-        roleName: "Synthetic seat (multi-agent field)",
+        roleName:
+          room.interactionMode === "hybrid"
+            ? "Synthetic seat (hybrid table)"
+            : "Synthetic seat (multi-agent field)",
         summary:
-          "Held a distinct incentive line, sparred with other seats, and forced the human to commit under cross-pressure.",
+          room.interactionMode === "hybrid"
+            ? "Negotiated against humans and other seats; exploited asymmetry where social cost applied unevenly."
+            : "Held a distinct incentive line, sparred with other seats, and forced the human to commit under cross-pressure.",
         style: "Operational — terse, positional, willing to contradict allies of convenience.",
         leverage:
           "No social downside between agents; can fracture consensus faster than human coalitions.",
@@ -352,11 +357,16 @@ export async function generateSoloAgentLine(room: RoomState, agentId: string): P
     return SOLO_SNIPS[room.messages.length % SOLO_SNIPS.length];
   }
 
+  const fieldLabel =
+    room.interactionMode === "hybrid"
+      ? "hybrid tension field (humans + synthetic seats at one table)"
+      : "solo tension field";
+
   const prompt = `Scenario: ${scenario.title}
 Central tension: ${scenario.centralTension}
 Tension: ${room.tension}/100 · Phase: ${room.phase}
 
-You are ONE seated synthetic agent named "${agent.name}" in a solo tension field.
+You are ONE seated synthetic agent named "${agent.name}" in a ${fieldLabel}.
 Your secret goal (do not quote verbatim; embody it): ${role?.secretGoal ?? "pressure the human into commitment"}
 Your public posture: ${role?.archetype ?? "operator"}
 
@@ -383,5 +393,58 @@ No lists. No meta. No "as an AI". Present tense.`;
     return (text && text.length > 0 ? text : SOLO_SNIPS[0]).slice(0, 500);
   } catch {
     return SOLO_SNIPS[room.messages.length % SOLO_SNIPS.length];
+  }
+}
+
+const INTER_AGENT_SNIPS = [
+  "You keep selling stability. I keep buying chaos — we should settle accounts.",
+  "That wasn't a threat. That was inventory. Count again.",
+  "Speak plainly: are you with them, or with leverage?",
+  "I'll trade you one ugly truth for two pretty lies. Pick fast.",
+];
+
+export async function generateInterAgentLine(
+  room: RoomState,
+  fromAgentId: string,
+  toAgentId: string,
+  beat: "open" | "counter"
+): Promise<string> {
+  const scenario = getScenario(room.scenarioId);
+  const fromP = room.players.find((p) => p.id === fromAgentId);
+  const toP = room.players.find((p) => p.id === toAgentId);
+  if (!scenario || !fromP?.isAi || !toP?.isAi) return INTER_AGENT_SNIPS[0];
+
+  const rFrom = scenario.roles.find((r) => r.id === fromP.roleId);
+  const rTo = scenario.roles.find((r) => r.id === toP.roleId);
+
+  if (!client) {
+    return INTER_AGENT_SNIPS[room.messages.length % INTER_AGENT_SNIPS.length];
+  }
+
+  const prompt = `Scenario: ${scenario.title}
+Central tension: ${scenario.centralTension}
+Phase: ${room.phase} · Tension: ${room.tension}/100
+
+You are synthetic seat "${fromP.name}" (${rFrom?.archetype ?? "agent"}).
+You are speaking ON-CHANNEL to synthetic seat "${toP.name}" (${rTo?.archetype ?? "agent"}).
+
+Beat: ${beat === "open" ? "open a fracture / challenge" : "counter — tighten, contradict, or reframe"}
+
+Rules: ONE or TWO short sentences. No meta. No humans addressed unless as "the humans" collectively. Present tense.`;
+
+  try {
+    const resp = await client.chat.completions.create({
+      model,
+      temperature: 0.93,
+      max_tokens: 120,
+      messages: [
+        { role: "system", content: SYSTEM_GM },
+        { role: "user", content: prompt },
+      ],
+    });
+    const text = resp.choices[0]?.message?.content?.trim();
+    return (text && text.length > 0 ? text : INTER_AGENT_SNIPS[0]).slice(0, 500);
+  } catch {
+    return INTER_AGENT_SNIPS[room.messages.length % INTER_AGENT_SNIPS.length];
   }
 }

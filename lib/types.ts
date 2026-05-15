@@ -1,12 +1,24 @@
 export type ScenarioId = "memory-winter" | "orbital-exodus" | "sovereign-compute";
 
-/** Room layout: crisis = flagship N:N; duel / influence = alternate pressure shapes; solo = 1 human vs multi-agent field. */
+/** Room layout: crisis = flagship N:N; duel / influence = alternate pressure shapes; solo = 1 human vs multi-agent field; hybrid = humans + synthetic seats. */
 export type InteractionMode =
   | "solo"
   | "crisis"
   | "duel"
   | "influence"
+  | "hybrid"
   | "hidden_faction";
+
+/** Directed heuristic edges (trust / attention), not a full graph DB. */
+export interface SocialEdge {
+  fromId: string;
+  toId: string;
+  /** -100..100 alignment / rupture pressure */
+  trust: number;
+  /** 0..100 salience of *to* as lever for *from* */
+  influence: number;
+  at: number;
+}
 
 export interface Role {
   id: string;
@@ -107,6 +119,10 @@ export interface RoomState {
   influencePrimaryId?: string;
   /** Throttle AI duel chat replies. */
   lastAiReplyAt?: number;
+  /** Throttle synthetic-only cross-talk (solo / hybrid). */
+  lastInterAgentAt?: number;
+  /** Heuristic trust / influence edges (updated from messages + events). */
+  socialGraph?: SocialEdge[];
 }
 
 export interface ReflectionReport {

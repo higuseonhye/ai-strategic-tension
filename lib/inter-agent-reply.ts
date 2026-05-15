@@ -1,52 +1,51 @@
 import { appendMessage, getRoom } from "./store";
-import { generateSoloAgentLine } from "./ai";
+import { generateInterAgentLine } from "./ai";
 import { shortId } from "./utils";
 
-const MIN_GAP_MS = 3000;
+const MIN_GAP_MS = 4500;
 
-/** After a human speaks in solo or hybrid mode, one or two synthetic seats may reply (async). */
-export function queueSoloAgentRepliesIfNeeded(code: string) {
+/** Synthetic seats spar without a human line (solo / hybrid), throttled. */
+export function queueInterAgentBanterIfNeeded(code: string, chance = 0.38) {
   const room = getRoom(code);
   if (!room || room.phase === "reflection" || room.phase === "lobby") return;
   if (room.interactionMode !== "solo" && room.interactionMode !== "hybrid") return;
   const ais = room.players.filter((p) => p.isAi);
-  if (ais.length === 0) return;
+  if (ais.length < 2) return;
+  if (Math.random() > chance) return;
 
   const now = Date.now();
-  if ((room.lastAiReplyAt ?? 0) + MIN_GAP_MS > now) return;
-  room.lastAiReplyAt = now;
+  if ((room.lastInterAgentAt ?? 0) + MIN_GAP_MS > now) return;
+  room.lastInterAgentAt = now;
 
   const shuffled = [...ais].sort(() => Math.random() - 0.5);
-  const primary = shuffled[0];
-  const secondary = shuffled.length > 1 ? shuffled[1] : undefined;
+  const first = shuffled[0]!;
+  const second = shuffled[1]!;
 
   void (async () => {
     const live = getRoom(code);
     if (!live || live.phase === "reflection") return;
     if (live.interactionMode !== "solo" && live.interactionMode !== "hybrid") return;
-    if (!primary) return;
-    const t1 = await generateSoloAgentLine(live, primary.id);
+    const t1 = await generateInterAgentLine(live, first.id, second.id, "open");
     if (t1.trim()) {
       appendMessage(code, {
         id: shortId(),
         at: Date.now(),
-        playerId: primary.id,
-        playerName: primary.name,
+        playerId: first.id,
+        playerName: first.name,
         text: t1.slice(0, 600),
       });
     }
-    if (!secondary) return;
-    await new Promise((r) => setTimeout(r, 1400));
+    await new Promise((r) => setTimeout(r, 950));
     const live2 = getRoom(code);
     if (!live2 || live2.phase === "reflection") return;
     if (live2.interactionMode !== "solo" && live2.interactionMode !== "hybrid") return;
-    const t2 = await generateSoloAgentLine(live2, secondary.id);
+    const t2 = await generateInterAgentLine(live2, second.id, first.id, "counter");
     if (t2.trim()) {
       appendMessage(code, {
         id: shortId(),
         at: Date.now(),
-        playerId: secondary.id,
-        playerName: secondary.name,
+        playerId: second.id,
+        playerName: second.name,
         text: t2.slice(0, 600),
       });
     }

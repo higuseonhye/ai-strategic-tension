@@ -41,6 +41,11 @@ export async function POST(
     const { queueSoloAgentRepliesIfNeeded } = await import("@/lib/solo-reply");
     queueDuelAdversaryReplyIfNeeded(room.code);
     queueSoloAgentRepliesIfNeeded(room.code);
+    const after = requireRoom(params.code);
+    if (after.interactionMode === "solo" || after.interactionMode === "hybrid") {
+      const { queueInterAgentBanterIfNeeded } = await import("@/lib/inter-agent-reply");
+      queueInterAgentBanterIfNeeded(params.code, 0.12);
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";

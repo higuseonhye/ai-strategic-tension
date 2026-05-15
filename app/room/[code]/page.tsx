@@ -9,6 +9,7 @@ import { ChatPanel } from "@/components/chat-panel";
 import { EventFeed } from "@/components/event-feed";
 import { RoleDossier } from "@/components/role-dossier";
 import { PlayerList, PlayerCount } from "@/components/player-list";
+import { SocialGraphPanel } from "@/components/social-graph-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -32,6 +33,7 @@ const MODE_LABEL: Record<InteractionMode, string> = {
   crisis: "N:N crisis",
   duel: "Strategic duel",
   influence: "1:N influence",
+  hybrid: "Hybrid field",
   hidden_faction: "Hidden faction",
 };
 
@@ -117,7 +119,13 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           </div>
           <PlayerCount
             players={room.players}
-            max={room.interactionMode === "solo" ? 1 : room.interactionMode === "duel" ? 2 : 6}
+            max={
+              room.interactionMode === "solo"
+                ? 1
+                : room.interactionMode === "duel"
+                  ? 2
+                  : 6
+            }
           />
         </div>
       </header>
@@ -157,7 +165,8 @@ function LobbyView({
 }) {
   const [starting, setStarting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const cap = room.interactionMode === "solo" ? 1 : room.interactionMode === "duel" ? 2 : 6;
+  const cap =
+    room.interactionMode === "solo" ? 1 : room.interactionMode === "duel" ? 2 : 6;
   const canStart =
     room.interactionMode === "solo"
       ? room.players.length === 1
@@ -194,9 +203,11 @@ function LobbyView({
             <CardDescription>
               {room.interactionMode === "solo"
                 ? "Solo field: you are the only human. Synthetic seats fill every other role when the host starts. Assignments are irreversible."
-                : `Share the room code with up to ${cap - 1} other player${
-                    cap > 2 ? "s" : ""
-                  }. Roles are assigned the moment the host starts the session, and they are irreversible.`}
+                : room.interactionMode === "hybrid"
+                  ? "Hybrid field: at least two humans in the lobby. When the host starts, every unused scenario seat becomes a synthetic agent — same channel, shared stakes."
+                  : `Share the room code with up to ${cap - 1} other player${
+                      cap > 2 ? "s" : ""
+                    }. Roles are assigned the moment the host starts the session, and they are irreversible.`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -208,9 +219,11 @@ function LobbyView({
               <p className="mt-3 text-xs text-mutedForeground">
                 {room.interactionMode === "solo"
                   ? "Solo mode: no other humans — multi-agent synthetic seats appear on start."
-                  : room.interactionMode === "duel"
-                    ? "Duel mode: exactly two humans, or one human vs AI. No spectators."
-                    : "The room is live once two players are present. Start with as few as two — every scenario scales."}
+                  : room.interactionMode === "hybrid"
+                    ? "Hybrid: two or more humans; remaining scenario seats become synthetic agents on start."
+                    : room.interactionMode === "duel"
+                      ? "Duel mode: exactly two humans, or one human vs AI. No spectators."
+                      : "The room is live once two players are present. Start with as few as two — every scenario scales."}
               </p>
             </div>
           </CardContent>
@@ -220,7 +233,7 @@ function LobbyView({
           <CardHeader>
             <CardTitle>Tension primitives in play</CardTitle>
             <CardDescription>
-              These are the levers the AI game master will pull. Plan for them.
+              These are the levers the pressure engine will pull. Plan for them.
               Or be surprised by them.
             </CardDescription>
           </CardHeader>
@@ -254,11 +267,13 @@ function LobbyView({
               {room.players.length}/{cap} —{" "}
               {room.interactionMode === "solo"
                 ? "solo field — you + synthetic seats on start."
-                : room.interactionMode === "duel" && room.aiOpponentEnabled
-                  ? "need exactly 1 human; AI joins on start."
-                  : room.interactionMode === "duel"
-                    ? "need exactly 2 humans."
-                    : "minimum 2 to start."}
+                : room.interactionMode === "hybrid"
+                  ? "need ≥2 humans; empty scenario seats become synthetic on start."
+                  : room.interactionMode === "duel" && room.aiOpponentEnabled
+                    ? "need exactly 1 human; AI joins on start."
+                    : room.interactionMode === "duel"
+                      ? "need exactly 2 humans."
+                      : "minimum 2 to start."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -396,11 +411,13 @@ function PlayView({
   const channelTitle =
     r.interactionMode === "solo"
       ? "Multi-agent field"
-      : r.interactionMode === "duel"
-        ? "Duel channel"
-        : r.interactionMode === "influence"
-          ? "Influence chamber"
-          : "Negotiation channel";
+      : r.interactionMode === "hybrid"
+        ? "Hybrid field"
+        : r.interactionMode === "duel"
+          ? "Duel channel"
+          : r.interactionMode === "influence"
+            ? "Influence chamber"
+            : "Negotiation channel";
 
   const decisionPanel = showDecisionPanel && (
     <Card className={cn(r.tension >= 90 && "ring-2 ring-primary/40 animate-pulseGlow")}>
@@ -578,8 +595,9 @@ function PlayView({
         <ChatPanel room={r} playerId={playerId} />
       </section>
 
-      {/* Right rail — events + decision */}
+      {/* Right rail — social sketch + events + decision */}
       <aside className="space-y-5">
+        <SocialGraphPanel room={r} />
         {eventPanel}
         {decisionPanel}
       </aside>

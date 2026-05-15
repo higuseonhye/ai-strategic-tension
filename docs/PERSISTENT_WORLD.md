@@ -17,7 +17,7 @@ session-based MVP.
 |--------|--------|
 | Disposable session | **Persistent world** remembers outcomes |
 | No explicit reward | **Reputation + contribution + legacy** (no XP/coins) |
-| Single interaction shape | **Modes**: solo / crisis / duel / influence (+ hybrid roadmap) |
+| Single interaction shape | **Modes**: solo / hybrid / crisis / duel / influence (+ hidden faction) |
 | Desktop-first web | **Mobile-first web** (native apps explicitly out of scope for now) |
 
 ## World layer (implemented)
@@ -56,6 +56,7 @@ SQL:
 | `crisis` | 6 | ≥2 players | Current flagship |
 | `duel` | 2 | 2 humans **or** 1 human + AI adversary (lobby opt-in) | Bilateral pressure; duel UI is two-column dossiers + shared channel |
 | `influence` | 6 | ≥2 | Same engine; **primary** player gets lectern + extra start framing |
+| `hybrid` | 6 | ≥2 humans | Unused scenario seats become synthetic agents on start; inter-agent banter; `socialGraph` |
 | `hidden_faction` | — | disabled | Reserved — requires abuse & trust design |
 
 ## API
@@ -77,6 +78,10 @@ SQL:
 - **Solo multi-agent field** — one human host; on start the engine fills every
   other scenario role with `isAi` seats, seeds cross-agent lines, and throttles
   multi-agent replies after human posts (`lib/solo-reply.ts`, `lib/solo-copy.ts`).
+- **Hybrid field** — 2–6 humans; remaining scenario seats become synthetic agents;
+  `lib/inter-agent-reply.ts` can fire AI↔AI lines on GM events (and rarely after
+  human posts); `lib/social-graph.ts` maintains heuristic trust/influence edges
+  surfaced in-room via `SocialGraphPanel`.
 
 ## Roadmap (not yet built)
 

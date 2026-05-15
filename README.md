@@ -23,7 +23,8 @@ The product opens with a single thesis: tension produces strategy, not prompts.
 ![Landing page](./public/screenshots/01-landing.png)
 
 ### Lobby — modes, scenarios, open a room
-Pick **Solo · multi-agent field** (primary entry), **N:N crisis**, **strategic duel**
+Pick **Solo · multi-agent field** (primary entry), **Hybrid field** (humans +
+synthetic seats), **N:N crisis**, **strategic duel**
 (two humans or **1:1 vs AI adversary**), or **1:N influence**; choose one of three scenarios; then create or join with a
 codename. The **World** badge links to the persistent chronicle.
 
@@ -86,7 +87,7 @@ entire situation changed.”*
 
 ## Gameplay loop
 
-1. Players enter a room (**solo:** 1 human + synthetic seats | **crisis / influence:** 2–6 | **duel:** two humans *or* one human vs an **AI adversary**)
+1. Players enter a room (**solo:** 1 human + synthetic seats | **hybrid:** 2–6 humans + synthetic seats for unused roles | **crisis / influence:** 2–6 | **duel:** two humans *or* one human vs an **AI adversary**)
 2. AI assigns secret roles, public briefs, and hidden leverage
 3. Realtime negotiation begins on a public channel
 4. AI injects destabilizing events (leaks, ultimatums, reversals, ruptures)
@@ -102,7 +103,7 @@ entire situation changed.”*
   coins). See **[docs/PERSISTENT_WORLD.md](./docs/PERSISTENT_WORLD.md)** for the
   full product direction.
 - **Interaction modes** (lobby): **Solo · multi-agent** (1 human + AI cohort),
-  **N:N crisis** (2–6), **strategic duel** (two humans or 1:1 vs AI), **1:N influence**
+  **Hybrid field** (2–6 humans + synthetic seats for empty roles), **N:N crisis** (2–6), **strategic duel** (two humans or 1:1 vs AI), **1:N influence**
   (2–6; a **primary** seat gets extra ultimatum-style framing on start). *Hidden AI faction* is gated until
   abuse controls exist.
 - **Supabase (optional)** — apply `supabase/migrations/*.sql`, then set
