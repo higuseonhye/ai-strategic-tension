@@ -33,7 +33,11 @@ session-based MVP.
      writes for durability / multi-instance. `GET /api/world` reads from Supabase
      when a metrics row exists, otherwise memory.
 
-SQL: `supabase/migrations/20260115120000_world_layer.sql`
+SQL:
+
+- `supabase/migrations/20260115120000_world_layer.sql` — metrics + timeline
+- `supabase/migrations/20260115123000_player_legacy.sql` — optional per-player
+  legacy lines merged into `/api/world` when Supabase is configured
 
 ## Rewards (implemented, narrative — not financialized)
 
@@ -49,8 +53,8 @@ SQL: `supabase/migrations/20260115120000_world_layer.sql`
 | Mode | Room cap | Start rule | Notes |
 |------|-----------|--------------|-------|
 | `crisis` | 6 | ≥2 players | Current flagship |
-| `duel` | 2 | **Exactly** 2 | Bilateral pressure |
-| `influence` | 6 | ≥2 | Same engine; framing for 1:N persuasion rooms |
+| `duel` | 2 | 2 humans **or** 1 human + AI adversary (lobby opt-in) | Bilateral pressure; duel UI is two-column dossiers + shared channel |
+| `influence` | 6 | ≥2 | Same engine; **primary** player gets lectern + extra start framing |
 | `hidden_faction` | — | disabled | Reserved — requires abuse & trust design |
 
 ## API
@@ -62,10 +66,18 @@ SQL: `supabase/migrations/20260115120000_world_layer.sql`
 - Root layout: `100dvh`, safe-area padding, `touch-manipulation`.
 - `/world`: bottom action bar pattern for small screens.
 
+## Recently shipped (this codebase)
+
+- **Player legacy** — reflection-derived lines can mirror to `player_legacy` in
+  Supabase (same service-role pattern as the world layer). Adversary-named rows
+  are skipped for privacy in the bump helper.
+- **Duel vs AI** — seated `isAi` adversary, throttled reply queue, client cannot
+  post as AI; mock reflection includes an adversary row.
+- **Influence framing** — `influencePrimaryId` + copy module + UI lectern on the
+  player list.
+
 ## Roadmap (not yet built)
 
-- Persist **player legacy** to Supabase with privacy controls.
-- **Mode 2 / 3** bespoke AI seating (AI as seated adversary / board) without
-  hijacking the human channel.
 - **Hidden AI faction** with audit logs and opt-in rooms only.
 - **Seasons** and forked worldlines (A/B universes).
+- Richer **privacy controls** for legacy export and cross-instance identity.

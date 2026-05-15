@@ -10,6 +10,7 @@ export async function POST(req: Request) {
       name?: string;
       scenarioId?: ScenarioId;
       interactionMode?: InteractionMode;
+      aiOpponentEnabled?: boolean;
     };
     if (!body.scenarioId) {
       return NextResponse.json({ error: "scenarioId required" }, { status: 400 });
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
       hostName: body.name ?? "Host",
       scenarioId: body.scenarioId,
       interactionMode: mode,
+      aiOpponentEnabled: mode === "duel" ? body.aiOpponentEnabled : undefined,
     });
     return NextResponse.json({ code: room.code, playerId, room });
   } catch (err) {

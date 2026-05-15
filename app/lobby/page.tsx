@@ -45,6 +45,7 @@ export default function LobbyPage() {
   const [name, setName] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId>(SCENARIOS[0].id);
   const [interactionMode, setInteractionMode] = useState<InteractionMode>("crisis");
+  const [aiDuelOpponent, setAiDuelOpponent] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState<"create" | "join" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +58,12 @@ export default function LobbyPage() {
       const res = await fetch("/api/room", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, scenarioId, interactionMode }),
+        body: JSON.stringify({
+          name,
+          scenarioId,
+          interactionMode,
+          aiOpponentEnabled: interactionMode === "duel" ? aiDuelOpponent : false,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create room");
@@ -131,7 +137,12 @@ export default function LobbyPage() {
                   key={m.id}
                   type="button"
                   disabled={m.disabled}
-                  onClick={() => !m.disabled && setInteractionMode(m.id)}
+                  onClick={() => {
+                    if (!m.disabled) {
+                      setInteractionMode(m.id);
+                      if (m.id !== "duel") setAiDuelOpponent(false);
+                    }
+                  }}
                   className={`rounded-xl border p-4 text-left transition touch-manipulation ${
                     interactionMode === m.id
                       ? "border-primary shadow-[0_0_0_1px_hsl(8_90%_58%/0.5)]"
@@ -144,6 +155,24 @@ export default function LobbyPage() {
               ))}
             </div>
           </div>
+
+          {interactionMode === "duel" && (
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4 touch-manipulation">
+              <input
+                type="checkbox"
+                checked={aiDuelOpponent}
+                onChange={(e) => setAiDuelOpponent(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-primary"
+              />
+              <span>
+                <span className="text-sm font-medium">1:1 vs AI adversary (beta)</span>
+                <span className="mt-1 block text-xs text-mutedForeground">
+                  Only you join the room; an AI counterparty is injected when the
+                  host starts. Human-vs-human duel stays two seats.
+                </span>
+              </span>
+            </label>
+          )}
 
           <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {SCENARIOS.map((s) => (

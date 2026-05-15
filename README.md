@@ -68,7 +68,7 @@ entire situation changed.”*
 
 ## Gameplay loop
 
-1. Players enter a room (**crisis / influence:** 2–6, **duel:** exactly 2)
+1. Players enter a room (**crisis / influence:** 2–6, **duel:** two humans *or* one human vs an **AI adversary** via lobby checkbox)
 2. AI assigns secret roles, public briefs, and hidden leverage
 3. Realtime negotiation begins on a public channel
 4. AI injects destabilizing events (leaks, ultimatums, reversals, ruptures)
@@ -84,11 +84,13 @@ entire situation changed.”*
   coins). See **[docs/PERSISTENT_WORLD.md](./docs/PERSISTENT_WORLD.md)** for the
   full product direction.
 - **Interaction modes** (lobby): **N:N crisis** (2–6), **strategic duel**
-  (exactly 2), **1:N influence** (2–6, framing). *Hidden AI faction* is gated
-  until abuse controls exist.
+  (two humans or 1:1 vs AI), **1:N influence** (2–6; a **primary** seat gets
+  extra ultimatum-style framing on start). *Hidden AI faction* is gated until
+  abuse controls exist.
 - **Supabase (optional)** — apply `supabase/migrations/*.sql`, then set
   `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` so session commits mirror to
-  Postgres; `GET /api/world` prefers DB when seeded.
+  Postgres (including optional **`player_legacy`** rows from reflections);
+  `GET /api/world` prefers DB when seeded.
 
 ---
 

@@ -81,11 +81,13 @@ function playerKey(name: string): string {
   return `p_${h.toString(16)}`;
 }
 
-export function bumpPlayerLegacyFromReflection(room: RoomState) {
+export function bumpPlayerLegacyFromReflection(room: RoomState): PlayerLegacyEntry[] {
   const w = world();
   const ref = room.reflection;
-  if (!ref) return;
+  const out: PlayerLegacyEntry[] = [];
+  if (!ref) return out;
   for (const row of ref.perPlayer) {
+    if (row.playerName === "Adversary") continue;
     const key = playerKey(row.playerName);
     const tag = tagFromStyle(row.style);
     const prev = w.legacy.get(key);
@@ -93,15 +95,18 @@ export function bumpPlayerLegacyFromReflection(room: RoomState) {
     tags.add(tag);
     let arr = [...tags];
     if (arr.length > 4) arr = arr.slice(-4);
-    w.legacy.set(key, {
+    const entry: PlayerLegacyEntry = {
       playerKey: key,
       displayHint: `${row.playerName.slice(0, 2)}·${row.playerName.slice(-1)}`,
       tags: arr,
       sessionsPlayed: (prev?.sessionsPlayed ?? 0) + 1,
       lastContribution: { publicTrust: 1 },
       updatedAt: Date.now(),
-    });
+    };
+    w.legacy.set(key, entry);
+    out.push(entry);
   }
+  return out;
 }
 
 /** Called when host commits irreversible decision (reflection phase begins). */

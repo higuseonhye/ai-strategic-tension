@@ -22,6 +22,9 @@ export async function POST(
     if (!player) {
       return NextResponse.json({ error: "Player not in room" }, { status: 403 });
     }
+    if (player.isAi) {
+      return NextResponse.json({ error: "AI cannot post via this endpoint" }, { status: 403 });
+    }
     touchPlayer(room.code, player.id);
     const text = body.text.slice(0, 600).trim();
     if (!text) return NextResponse.json({ error: "empty" }, { status: 400 });
@@ -34,6 +37,8 @@ export async function POST(
       isWhisper: Boolean(body.toPlayerId),
       toPlayerId: body.toPlayerId,
     });
+    const { queueDuelAdversaryReplyIfNeeded } = await import("@/lib/duel-reply");
+    queueDuelAdversaryReplyIfNeeded(room.code);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";

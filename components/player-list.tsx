@@ -20,7 +20,10 @@ export function PlayerList({
       {room.players.map((p) => {
         const role = scenario?.roles.find((r) => r.id === p.roleId);
         const isMe = p.id === selfId;
-        const live = Date.now() - p.lastSeenAt < 30_000;
+        const live = p.isAi || Date.now() - p.lastSeenAt < 30_000;
+        const lectern =
+          room.interactionMode === "influence" &&
+          room.influencePrimaryId === p.id;
         return (
           <li
             key={p.id}
@@ -38,12 +41,18 @@ export function PlayerList({
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium">
                   {p.name}
+                  {p.isAi && <Badge tone="danger">AI</Badge>}
                   {isMe && <Badge tone="accent">You</Badge>}
                   {p.isHost && <Badge tone="muted">Host</Badge>}
+                  {lectern && <Badge tone="accent">Lectern</Badge>}
                 </div>
                 {showRoles && role && (
                   <p className="text-[11px] text-mutedForeground">
-                    {isMe ? role.name : role.archetype}
+                    {p.isAi
+                      ? "Strategic adversary — not a helper."
+                      : isMe
+                        ? role.name
+                        : role.archetype}
                   </p>
                 )}
               </div>

@@ -10,6 +10,8 @@ import type {
 } from "./types";
 import { getScenario } from "./scenarios";
 import { randomRoomCode, shortId } from "./utils";
+import { AI_DUEL_PLAYER_ID } from "./mode-utils";
+import { influenceFrameCopy } from "./influence-copy";
 
 type GlobalShape = {
   rooms: Map<string, RoomState>;
@@ -49,9 +51,13 @@ export function createRoom(opts: {
   hostName: string;
   scenarioId: ScenarioId;
   interactionMode?: InteractionMode;
+  aiOpponentEnabled?: boolean;
 }): { room: RoomState; playerId: string } {
   const scenario = getScenario(opts.scenarioId);
   if (!scenario) throw new Error(`Unknown scenario: ${opts.scenarioId}`);
+
+  const mode = opts.interactionMode ?? "crisis";
+  const aiOn = mode === "duel" && Boolean(opts.aiOpponentEnabled);
 
   const store = getStore();
   let code = randomRoomCode();
@@ -78,7 +84,8 @@ export function createRoom(opts: {
     events: [],
     messages: [],
     votes: [],
-    interactionMode: opts.interactionMode ?? "crisis",
+    interactionMode: mode,
+    aiOpponentEnabled: aiOn ? true : undefined,
   };
 
   store.rooms.set(code, room);
@@ -91,8 +98,9 @@ export function joinRoom(opts: {
   name: string;
 }): { room: RoomState; playerId: string } {
   const room = requireRoom(opts.code);
-  const cap = maxPlayersForMode(room.interactionMode);
-  if (room.players.length >= cap) throw new Error(`Room is full (max ${cap}).`);
+  if (room.players.length >= maxPlayers(room)) {
+    throw new Error(`Room is full (max ${maxPlayers(room)}).`);
+  }
   if (room.phase !== "lobby") throw new Error("Game already started.");
 
   const id = shortId();
@@ -135,12 +143,28 @@ export function startGame(code: string) {
   const room = requireRoom(code);
   const scenario = getScenario(room.scenarioId);
   if (!scenario) throw new Error("Scenario missing");
-  const minP = minPlayersForMode(room.interactionMode);
+  const minP = minPlayers(room);
   if (room.players.length < minP) {
     throw new Error(`Need at least ${minP} players for this mode.`);
   }
-  if (room.interactionMode === "duel" && room.players.length !== 2) {
-    throw new Error("Duel mode requires exactly 2 players.");
+
+  if (room.interactionMode === "duel" && room.aiOpponentEnabled) {
+    if (room.players.length !== 1) {
+      throw new Error("AI duel requires exactly one human player in the room.");
+    }
+    if (room.players.some((p) => p.isAi)) {
+      throw new Error("AI seat already present.");
+    }
+    room.players.push({
+      id: AI_DUEL_PLAYER_ID,
+      name: "Adversary",
+      joinedAt: Date.now(),
+      lastSeenAt: Date.now(),
+      isHost: false,
+      isAi: true,
+    });
+  } else if (room.interactionMode === "duel" && room.players.length !== 2) {
+    throw new Error("Duel mode requires exactly 2 human players.");
   }
 
   const shuffled = [...scenario.roles].sort(() => Math.random() - 0.5);
@@ -159,6 +183,30 @@ export function startGame(code: string) {
     body: scenario.openingPressure,
     delta: 6,
   });
+
+  if (room.interactionMode === "influence") {
+    room.influencePrimaryId = room.hostId;
+    const frame = influenceFrameCopy(room.scenarioId);
+    room.events.push({
+      id: shortId(),
+      at: Date.now(),
+      kind: "ultimatum",
+      title: frame.title,
+      body: frame.body,
+      delta: 4,
+    });
+  }
+
+  if (room.interactionMode === "duel" && room.aiOpponentEnabled) {
+    room.messages.push({
+      id: shortId(),
+      at: Date.now(),
+      playerId: AI_DUEL_PLAYER_ID,
+      playerName: "Adversary",
+      text: "I'm not here to agree. Speak in stakes, not slogans.",
+    });
+  }
+
   emit(code, room);
 }
 
@@ -254,30 +302,19 @@ export function purgeStale() {
       store.rooms.delete(code);
     } else {
       room.players = room.players.filter(
-        (p) => now - p.lastSeenAt < PRESENCE_TTL_MS * 30
+        (p) => p.isAi || now - p.lastSeenAt < PRESENCE_TTL_MS * 30
       );
     }
   }
 }
 
-function maxPlayersForMode(mode: InteractionMode): number {
-  switch (mode) {
-    case "duel":
-      return 2;
-    case "influence":
-      return 6;
-    case "hidden_faction":
-      return 6;
-    default:
-      return 6;
-  }
+function maxPlayers(room: RoomState): number {
+  if (room.interactionMode === "duel" && room.aiOpponentEnabled) return 1;
+  if (room.interactionMode === "duel") return 2;
+  return 6;
 }
 
-function minPlayersForMode(mode: InteractionMode): number {
-  switch (mode) {
-    case "duel":
-      return 2;
-    default:
-      return 2;
-  }
+function minPlayers(room: RoomState): number {
+  if (room.interactionMode === "duel" && room.aiOpponentEnabled) return 1;
+  return 2;
 }

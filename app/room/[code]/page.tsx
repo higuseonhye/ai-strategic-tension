@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getScenario } from "@/lib/scenarios";
-import type { InteractionMode, Phase, RoomState } from "@/lib/types";
+import type { InteractionMode, Phase, Role, RoomState } from "@/lib/types";
+import { humanPlayerCount } from "@/lib/mode-utils";
 import { cn } from "@/lib/utils";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -157,9 +158,11 @@ function LobbyView({
   const [err, setErr] = useState<string | null>(null);
   const cap = room.interactionMode === "duel" ? 2 : 6;
   const canStart =
-    room.interactionMode === "duel"
-      ? room.players.length === 2
-      : room.players.length >= 2;
+    room.interactionMode === "duel" && room.aiOpponentEnabled
+      ? room.players.length === 1
+      : room.interactionMode === "duel"
+        ? room.players.length === 2
+        : room.players.length >= 2;
 
   async function start() {
     setStarting(true);
@@ -242,9 +245,11 @@ function LobbyView({
             <CardTitle>Players in this room</CardTitle>
             <CardDescription>
               {room.players.length}/{cap} —{" "}
-              {room.interactionMode === "duel"
-                ? "need exactly 2 to start duel."
-                : "minimum 2 to start."}
+              {room.interactionMode === "duel" && room.aiOpponentEnabled
+                ? "need exactly 1 human; AI joins on start."
+                : room.interactionMode === "duel"
+                  ? "need exactly 2 humans."
+                  : "minimum 2 to start."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -293,14 +298,23 @@ function PlayView({
   isHost,
   myRoleName,
 }: {
-  room: ReturnType<typeof getScenario> extends infer _ ? any : any;
+  room: RoomState;
   playerId: string;
   isHost: boolean;
   myRoleName?: string;
 }) {
-  const r = room as any;
+  const r = room;
   const scenario = getScenario(r.scenarioId)!;
-  const myRole = scenario.roles.find((x) => x.id === r.players.find((p: any) => p.id === playerId)?.roleId);
+  const myRole = scenario.roles.find(
+    (x) => x.id === r.players.find((p) => p.id === playerId)?.roleId
+  );
+  const opponent = r.players.find((p) => p.id !== playerId);
+  const oppRole =
+    opponent && !opponent.isAi
+      ? scenario.roles.find((x) => x.id === opponent.roleId)
+      : undefined;
+  const humans = Math.max(1, humanPlayerCount(r));
+  const isDuel = r.interactionMode === "duel";
 
   const [eventBusy, setEventBusy] = useState(false);
   const [decisionBusy, setDecisionBusy] = useState(false);
@@ -370,6 +384,149 @@ function PlayView({
   const showDecisionPanel =
     r.phase === "endgame" || r.phase === "decision" || r.tension >= 80;
 
+  const channelTitle =
+    r.interactionMode === "duel"
+      ? "Duel channel"
+      : r.interactionMode === "influence"
+        ? "Influence chamber"
+        : "Negotiation channel";
+
+  const decisionPanel = showDecisionPanel && (
+    <Card className={cn(r.tension >= 90 && "ring-2 ring-primary/40 animate-pulseGlow")}>
+      <CardHeader>
+        <CardTitle className="text-base">Final framework</CardTitle>
+        <CardDescription className="text-xs">
+          {scenario.finalDecisionPrompt.split("\n\n")[0]}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {choices.map((c) => (
+          <button
+            key={c.letter}
+            onClick={() => castVote(c.letter)}
+            disabled={decisionBusy}
+            className={cn(
+              "group w-full min-h-11 rounded-md border px-3 py-2 text-left text-sm transition touch-manipulation",
+              myVote === c.letter
+                ? "border-primary bg-primary/10 text-foreground"
+                : "border-white/10 bg-white/[0.02] hover:border-white/30"
+            )}
+          >
+            <span className="font-mono text-xs text-primary">{c.letter}.</span>{" "}
+            {c.text}
+            <span className="ml-2 text-[10px] uppercase tracking-[0.16em] text-mutedForeground">
+              {countVotes(r.votes, c.letter)}/{humans}
+            </span>
+          </button>
+        ))}
+        {isHost && (
+          <Button
+            className="mt-3 min-h-12 w-full touch-manipulation"
+            size="lg"
+            onClick={commitFinal}
+            disabled={!myVote || committing}
+          >
+            {committing ? "Committing…" : "Commit final decision (irreversible)"}
+          </Button>
+        )}
+        {!isHost && (
+          <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-mutedForeground">
+            Host commits the final decision when the room is ready.
+          </p>
+        )}
+        {errMsg && (
+          <div className="mt-2 rounded-md border border-danger/30 bg-danger/10 p-2 text-xs text-danger">
+            {errMsg}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const eventPanel = (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Event feed</CardTitle>
+          {isHost && r.phase !== "decision" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-9 touch-manipulation"
+              onClick={triggerEvent}
+              disabled={eventBusy}
+            >
+              {eventBusy ? "…" : "Inject event"}
+            </Button>
+          )}
+        </div>
+        <CardDescription className="text-xs">
+          The AI destabilizes when the room cools down too much.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="max-h-[min(50vh,420px)] overflow-y-auto">
+        <EventFeed events={r.events} />
+      </CardContent>
+    </Card>
+  );
+
+  if (isDuel) {
+    return (
+      <div className="mt-6 flex flex-col gap-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <RoleDossier role={myRole} />
+          {opponent?.isAi ? (
+            <AiOpponentCard />
+          ) : oppRole && opponent ? (
+            <ReadOnlyOpponentCard name={opponent.name} role={oppRole} />
+          ) : (
+            <Card className="border-dashed border-white/20 p-5 text-sm text-mutedForeground">
+              Waiting for opponent…
+            </Card>
+          )}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+            <TensionMeter value={r.tension} />
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-mutedForeground">
+              <span>Round {r.round}</span>
+              <span>{r.events.length} events</span>
+            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Players</CardTitle>
+                <CardDescription className="text-xs">
+                  Two seats. No neutral ground.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PlayerList room={r} selfId={playerId} showRoles />
+              </CardContent>
+            </Card>
+          </div>
+
+          <section className="flex min-h-[min(70vh,560px)] flex-col overflow-hidden rounded-xl border border-white/10 bg-card/60 lg:col-span-2">
+            <div className="border-b border-white/5 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium">{channelTitle}</h2>
+                <span className="text-[10px] uppercase tracking-[0.2em] text-mutedForeground">
+                  {myRoleName ? `Speaking as ${myRoleName}` : "Observer"}
+                </span>
+              </div>
+            </div>
+            <ChatPanel room={r} playerId={playerId} />
+          </section>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          {eventPanel}
+          {decisionPanel}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-6 grid gap-5 lg:grid-cols-[300px_1fr_320px]">
       {/* Left rail — dossier + players */}
@@ -401,7 +558,7 @@ function PlayView({
       <section className="flex h-[calc(100vh-220px)] min-h-[520px] flex-col overflow-hidden rounded-xl border border-white/10 bg-card/60">
         <div className="border-b border-white/5 px-4 py-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium">Negotiation channel</h2>
+            <h2 className="text-sm font-medium">{channelTitle}</h2>
             <span className="text-[10px] uppercase tracking-[0.2em] text-mutedForeground">
               {myRoleName ? `Speaking as ${myRoleName}` : "Observer"}
             </span>
@@ -412,85 +569,47 @@ function PlayView({
 
       {/* Right rail — events + decision */}
       <aside className="space-y-5">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Event feed</CardTitle>
-              {isHost && r.phase !== "decision" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={triggerEvent}
-                  disabled={eventBusy}
-                >
-                  {eventBusy ? "…" : "Inject event"}
-                </Button>
-              )}
-            </div>
-            <CardDescription className="text-xs">
-              The AI destabilizes when the room cools down too much.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="max-h-[420px] overflow-y-auto">
-            <EventFeed events={r.events} />
-          </CardContent>
-        </Card>
-
-        {showDecisionPanel && (
-          <Card className={cn(r.tension >= 90 && "ring-2 ring-primary/40 animate-pulseGlow")}>
-            <CardHeader>
-              <CardTitle className="text-base">Final framework</CardTitle>
-              <CardDescription className="text-xs">
-                {scenario.finalDecisionPrompt.split("\n\n")[0]}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {choices.map((c) => (
-                <button
-                  key={c.letter}
-                  onClick={() => castVote(c.letter)}
-                  disabled={decisionBusy}
-                  className={cn(
-                    "group w-full rounded-md border px-3 py-2 text-left text-sm transition",
-                    myVote === c.letter
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/30"
-                  )}
-                >
-                  <span className="font-mono text-xs text-primary">
-                    {c.letter}.
-                  </span>{" "}
-                  {c.text}
-                  <span className="ml-2 text-[10px] uppercase tracking-[0.16em] text-mutedForeground">
-                    {countVotes(r.votes, c.letter)}/{r.players.length}
-                  </span>
-                </button>
-              ))}
-              {isHost && (
-                <Button
-                  className="mt-3 w-full"
-                  size="lg"
-                  onClick={commitFinal}
-                  disabled={!myVote || committing}
-                >
-                  {committing ? "Committing…" : "Commit final decision (irreversible)"}
-                </Button>
-              )}
-              {!isHost && (
-                <p className="mt-2 text-[10px] uppercase tracking-[0.18em] text-mutedForeground">
-                  Host commits the final decision when the room is ready.
-                </p>
-              )}
-              {errMsg && (
-                <div className="mt-2 rounded-md border border-danger/30 bg-danger/10 p-2 text-xs text-danger">
-                  {errMsg}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {eventPanel}
+        {decisionPanel}
       </aside>
     </div>
+  );
+}
+
+function ReadOnlyOpponentCard({ name, role }: { name: string; role: Role }) {
+  return (
+    <Card className="border-white/15">
+      <CardHeader className="pb-2">
+        <CardDescription className="text-[10px] uppercase tracking-[0.2em]">
+          Opponent · public brief only
+        </CardDescription>
+        <CardTitle className="text-base">{name}</CardTitle>
+        <p className="text-xs text-mutedForeground">{role.archetype}</p>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm leading-relaxed text-foreground/90">{role.publicBrief}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AiOpponentCard() {
+  return (
+    <Card className="border-danger/30 bg-danger/[0.07]">
+      <CardHeader className="pb-2">
+        <CardDescription className="text-[10px] uppercase tracking-[0.2em]">
+          1:AI adversary
+        </CardDescription>
+        <CardTitle className="text-base">Adversary</CardTitle>
+        <p className="text-xs text-mutedForeground">
+          Strategic counterweight — not a tutor. Pressure only.
+        </p>
+      </CardHeader>
+      <CardContent className="text-sm leading-relaxed text-foreground/85">
+        Replies are terse, confrontational, and throttled. Your job is to survive
+        the frame long enough to commit an irreversible line.
+      </CardContent>
+    </Card>
   );
 }
 

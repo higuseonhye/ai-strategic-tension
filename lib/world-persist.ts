@@ -1,4 +1,4 @@
-import type { WorldMetrics, WorldTimelineEvent } from "./world-types";
+import type { PlayerLegacyEntry, WorldMetrics, WorldTimelineEvent } from "./world-types";
 import {
   getWorldMetrics,
   getWorldTimeline,
@@ -25,6 +25,69 @@ async function getAdminClient() {
 
 const GLOBAL_WORLD_ID =
   process.env.WORLD_ID ?? "00000000-0000-0000-0000-000000000001";
+
+function mergeLegacies(
+  db: PlayerLegacyEntry[] | null,
+  mem: PlayerLegacyEntry[]
+): PlayerLegacyEntry[] {
+  const map = new Map<string, PlayerLegacyEntry>();
+  for (const e of db ?? []) map.set(e.playerKey, e);
+  for (const e of mem) {
+    const prev = map.get(e.playerKey);
+    if (!prev || e.updatedAt >= prev.updatedAt) map.set(e.playerKey, e);
+  }
+  return [...map.values()]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 40);
+}
+
+export async function persistPlayerLegacies(entries: PlayerLegacyEntry[]) {
+  const client = await getAdminClient();
+  if (!client || entries.length === 0) return;
+  for (const e of entries) {
+    try {
+      await client.from("player_legacy").upsert(
+        {
+          world_id: GLOBAL_WORLD_ID,
+          player_key: e.playerKey,
+          display_hint: e.displayHint,
+          tags: e.tags,
+          sessions_played: e.sessionsPlayed,
+          last_contribution: e.lastContribution,
+          updated_at: new Date(e.updatedAt).toISOString(),
+        },
+        { onConflict: "world_id,player_key" }
+      );
+    } catch {
+      /* optional */
+    }
+  }
+}
+
+async function loadPlayerLegacyFromSupabase(): Promise<PlayerLegacyEntry[] | null> {
+  const client = await getAdminClient();
+  if (!client) return null;
+  try {
+    const { data } = await client
+      .from("player_legacy")
+      .select("*")
+      .eq("world_id", GLOBAL_WORLD_ID)
+      .order("updated_at", { ascending: false })
+      .limit(80);
+    if (!data?.length) return null;
+    return data.map((r) => ({
+      playerKey: r.player_key,
+      displayHint: r.display_hint,
+      tags: r.tags ?? [],
+      sessionsPlayed: r.sessions_played,
+      lastContribution: (r.last_contribution ??
+        {}) as PlayerLegacyEntry["lastContribution"],
+      updatedAt: new Date(r.updated_at).getTime(),
+    }));
+  } catch {
+    return null;
+  }
+}
 
 export async function persistSessionWorldOutcome(room: RoomState) {
   const ev = recordSessionInWorldMemory(room);
@@ -123,6 +186,10 @@ export async function loadWorldFromSupabaseIfConfigured(): Promise<{
 export async function getWorldSnapshotForApi(opts?: { timelineLimit?: number }) {
   const limit = opts?.timelineLimit ?? 50;
   const remote = await loadWorldFromSupabaseIfConfigured();
+  const dbLegacy = await loadPlayerLegacyFromSupabase();
+  const memLegacy = getPlayerLegacyList(60);
+  const legacy = mergeLegacies(dbLegacy, memLegacy).slice(0, 30);
+
   if (remote?.metrics) {
     const timeline = remote.events.length
       ? remote.events.slice(0, limit)
@@ -131,13 +198,13 @@ export async function getWorldSnapshotForApi(opts?: { timelineLimit?: number }) 
       supabase: true,
       metrics: remote.metrics,
       timeline,
-      legacy: getPlayerLegacyList(30),
+      legacy,
     };
   }
   return {
     supabase: supabaseConfigured(),
     metrics: getWorldMetrics(),
     timeline: getWorldTimeline(limit),
-    legacy: getPlayerLegacyList(30),
+    legacy,
   };
 }

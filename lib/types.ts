@@ -46,6 +46,8 @@ export interface Player {
   joinedAt: number;
   isHost: boolean;
   lastSeenAt: number;
+  /** Synthetic seat for 1:AI duel. */
+  isAi?: boolean;
 }
 
 export type EventKind =
@@ -98,6 +100,12 @@ export interface RoomState {
   reflection?: ReflectionReport;
   /** Negotiation architecture; default crisis. */
   interactionMode: InteractionMode;
+  /** Duel: play against AI with only one human in the room. */
+  aiOpponentEnabled?: boolean;
+  /** Influence: host is the primary lectern voice. */
+  influencePrimaryId?: string;
+  /** Throttle AI duel chat replies. */
+  lastAiReplyAt?: number;
 }
 
 export interface ReflectionReport {

@@ -213,6 +213,17 @@ function mockReflection(room: RoomState, scenario: Scenario): ReflectionReport {
   const finalChoice = room.finalChoice ?? "no agreement";
 
   const perPlayer = room.players.map((p) => {
+    if (p.isAi) {
+      return {
+        playerName: p.name,
+        roleName: "Operational adversary",
+        summary:
+          "Applied contrarian pressure and reframing without conceding the moral frame.",
+        style: "Adversarial — cold, surgical, patient.",
+        leverage:
+          "Unlimited tempo and protocol-level escalation; no reputation downside inside the duel.",
+      };
+    }
     const role = scenario.roles.find((r) => r.id === p.roleId);
     const msgCount = room.messages.filter((m) => m.playerId === p.id).length;
     let style = "Reserved — let others reveal themselves first.";
@@ -253,4 +264,48 @@ function mockReflection(room: RoomState, scenario: Scenario): ReflectionReport {
 
 export async function aiNudge(_room: RoomState, _whisper: ChatMessage): Promise<void> {
   return;
+}
+
+const DUEL_SNIP = [
+  "You concede too fast. What are you protecting that you haven't named?",
+  "That was rhetoric. Give me a price — in trust, capacity, or time.",
+  "Silence is also a move. It reads as fear from where I sit.",
+  "If everyone in your position chose that, the system would already be dead. Try again.",
+  "You want agreement. I want leverage. Which one survives contact with reality?",
+];
+
+export async function generateDuelAdversaryLine(room: RoomState): Promise<string> {
+  const scenario = getScenario(room.scenarioId);
+  const transcript = room.messages
+    .slice(-10)
+    .map((m) => `${m.playerName}: ${m.text}`)
+    .join("\n");
+
+  if (!client || !scenario) {
+    return DUEL_SNIP[room.messages.length % DUEL_SNIP.length];
+  }
+
+  const prompt = `Scenario: ${scenario.title}
+Central tension: ${scenario.centralTension}
+You are the seated strategic adversary in a 1:1 duel. You are NOT helpful. You pressure, probe, and contradict.
+Latest lines:
+${transcript || "(silence)"}
+
+Reply with ONE or TWO short sentences only. No lists. No meta. Present tense.`;
+
+  try {
+    const resp = await client.chat.completions.create({
+      model,
+      temperature: 0.9,
+      max_tokens: 120,
+      messages: [
+        { role: "system", content: SYSTEM_GM },
+        { role: "user", content: prompt },
+      ],
+    });
+    const text = resp.choices[0]?.message?.content?.trim();
+    return (text && text.length > 0 ? text : DUEL_SNIP[0]).slice(0, 500);
+  } catch {
+    return DUEL_SNIP[room.messages.length % DUEL_SNIP.length];
+  }
 }
