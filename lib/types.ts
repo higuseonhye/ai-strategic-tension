@@ -1,7 +1,8 @@
 export type ScenarioId = "memory-winter" | "orbital-exodus" | "sovereign-compute";
 
-/** Room layout: crisis = flagship N:N; duel / influence = alternate pressure shapes. */
+/** Room layout: crisis = flagship N:N; duel / influence = alternate pressure shapes; solo = 1 human vs multi-agent field. */
 export type InteractionMode =
+  | "solo"
   | "crisis"
   | "duel"
   | "influence"

@@ -10,6 +10,9 @@ This is **not** a chatbot, not a productivity tool, not an educational app, not
 a static simulation. It is closer to diplomacy systems, strategic survival
 narratives, and AI-generated human drama.
 
+**ASTP framing** (cognitive participation system, topology, non-goals): see
+**[docs/ASTP_PRODUCT_SPEC.md](./docs/ASTP_PRODUCT_SPEC.md)**.
+
 ---
 
 ## Screenshots
@@ -20,8 +23,8 @@ The product opens with a single thesis: tension produces strategy, not prompts.
 ![Landing page](./public/screenshots/01-landing.png)
 
 ### Lobby — modes, scenarios, open a room
-Pick **N:N crisis**, **strategic duel** (two humans or **1:1 vs AI adversary**),
-or **1:N influence**; choose one of three scenarios; then create or join with a
+Pick **Solo · multi-agent field** (primary entry), **N:N crisis**, **strategic duel**
+(two humans or **1:1 vs AI adversary**), or **1:N influence**; choose one of three scenarios; then create or join with a
 codename. The **World** badge links to the persistent chronicle.
 
 ![Lobby — interaction modes + scenario cards](./public/screenshots/02-lobby.png)
@@ -83,7 +86,7 @@ entire situation changed.”*
 
 ## Gameplay loop
 
-1. Players enter a room (**crisis / influence:** 2–6, **duel:** two humans *or* one human vs an **AI adversary** via lobby checkbox)
+1. Players enter a room (**solo:** 1 human + synthetic seats | **crisis / influence:** 2–6 | **duel:** two humans *or* one human vs an **AI adversary**)
 2. AI assigns secret roles, public briefs, and hidden leverage
 3. Realtime negotiation begins on a public channel
 4. AI injects destabilizing events (leaks, ultimatums, reversals, ruptures)
@@ -98,9 +101,9 @@ entire situation changed.”*
   public timeline (“Session 1842 triggered …”), and reputation tags (no XP /
   coins). See **[docs/PERSISTENT_WORLD.md](./docs/PERSISTENT_WORLD.md)** for the
   full product direction.
-- **Interaction modes** (lobby): **N:N crisis** (2–6), **strategic duel**
-  (two humans or 1:1 vs AI), **1:N influence** (2–6; a **primary** seat gets
-  extra ultimatum-style framing on start). *Hidden AI faction* is gated until
+- **Interaction modes** (lobby): **Solo · multi-agent** (1 human + AI cohort),
+  **N:N crisis** (2–6), **strategic duel** (two humans or 1:1 vs AI), **1:N influence**
+  (2–6; a **primary** seat gets extra ultimatum-style framing on start). *Hidden AI faction* is gated until
   abuse controls exist.
 - **Supabase (optional)** — apply `supabase/migrations/*.sql`, then set
   `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` so session commits mirror to
@@ -153,6 +156,7 @@ ai-strategic-tension/
 │           └── stream/route.ts  # SSE realtime stream
 ├── components/
 ├── docs/
+│   ├── ASTP_PRODUCT_SPEC.md     # Cognitive participation / topology intent
 │   └── PERSISTENT_WORLD.md      # v2 direction + implementation notes
 ├── lib/
 │   ├── scenarios.ts

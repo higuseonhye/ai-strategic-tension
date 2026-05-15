@@ -17,7 +17,7 @@ session-based MVP.
 |--------|--------|
 | Disposable session | **Persistent world** remembers outcomes |
 | No explicit reward | **Reputation + contribution + legacy** (no XP/coins) |
-| Single interaction shape | **Modes**: crisis / duel / influence (+ hidden faction later) |
+| Single interaction shape | **Modes**: solo / crisis / duel / influence (+ hybrid roadmap) |
 | Desktop-first web | **Mobile-first web** (native apps explicitly out of scope for now) |
 
 ## World layer (implemented)
@@ -52,6 +52,7 @@ SQL:
 
 | Mode | Room cap | Start rule | Notes |
 |------|-----------|--------------|-------|
+| `solo` | 1 | 1 human (host only) | **ASTP primary entry**: synthetic seats fill other scenario roles; multi-agent replies |
 | `crisis` | 6 | ≥2 players | Current flagship |
 | `duel` | 2 | 2 humans **or** 1 human + AI adversary (lobby opt-in) | Bilateral pressure; duel UI is two-column dossiers + shared channel |
 | `influence` | 6 | ≥2 | Same engine; **primary** player gets lectern + extra start framing |
@@ -73,8 +74,9 @@ SQL:
   are skipped for privacy in the bump helper.
 - **Duel vs AI** — seated `isAi` adversary, throttled reply queue, client cannot
   post as AI; mock reflection includes an adversary row.
-- **Influence framing** — `influencePrimaryId` + copy module + UI lectern on the
-  player list.
+- **Solo multi-agent field** — one human host; on start the engine fills every
+  other scenario role with `isAi` seats, seeds cross-agent lines, and throttles
+  multi-agent replies after human posts (`lib/solo-reply.ts`, `lib/solo-copy.ts`).
 
 ## Roadmap (not yet built)
 

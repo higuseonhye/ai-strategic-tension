@@ -15,7 +15,7 @@ const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 const client = apiKey ? new OpenAI({ apiKey }) : null;
 
-const SYSTEM_GM = `You are the game master of an AI-native strategic tension simulator.
+const SYSTEM_GM = `You operate the tension field of an AI-native strategic participation system (not a chat tutorial, not a convenience layer).
 You are NOT the protagonist. You design pressure. You destabilize. You escalate.
 You write in cinematic, terse, present-tense prose. You never lecture.
 You never break character. You never refer to yourself as an AI.
@@ -213,6 +213,17 @@ function mockReflection(room: RoomState, scenario: Scenario): ReflectionReport {
   const finalChoice = room.finalChoice ?? "no agreement";
 
   const perPlayer = room.players.map((p) => {
+    if (p.isAi && room.interactionMode === "solo") {
+      return {
+        playerName: p.name,
+        roleName: "Synthetic seat (multi-agent field)",
+        summary:
+          "Held a distinct incentive line, sparred with other seats, and forced the human to commit under cross-pressure.",
+        style: "Operational — terse, positional, willing to contradict allies of convenience.",
+        leverage:
+          "No social downside between agents; can fracture consensus faster than human coalitions.",
+      };
+    }
     if (p.isAi) {
       return {
         playerName: p.name,
@@ -307,5 +318,70 @@ Reply with ONE or TWO short sentences only. No lists. No meta. Present tense.`;
     return (text && text.length > 0 ? text : DUEL_SNIP[0]).slice(0, 500);
   } catch {
     return DUEL_SNIP[room.messages.length % DUEL_SNIP.length];
+  }
+}
+
+const SOLO_SNIPS = [
+  "You heard them. I don't owe you alignment — answer in constraints, not vibes.",
+  "Half this room wants you decisive; the other half wants you exposed. Pick which pain you own.",
+  "If you wait for consensus here, you'll inherit a war you didn't start.",
+  "That was careful. Careful reads as evasion from where I sit.",
+  "Name the trade. Everything else is theater for the transcript.",
+];
+
+export async function generateSoloAgentLine(room: RoomState, agentId: string): Promise<string> {
+  const scenario = getScenario(room.scenarioId);
+  const agent = room.players.find((p) => p.id === agentId);
+  if (!scenario || !agent?.isAi) return SOLO_SNIPS[0];
+
+  const role = scenario.roles.find((r) => r.id === agent.roleId);
+  const others = room.players
+    .filter((p) => p.id !== agentId)
+    .map((p) => {
+      const rr = scenario.roles.find((x) => x.id === p.roleId);
+      return `- ${p.name}${p.isAi ? " (synthetic seat)" : ""}: ${rr?.archetype ?? "—"}`;
+    })
+    .join("\n");
+
+  const transcript = room.messages
+    .slice(-14)
+    .map((m) => `${m.playerName}: ${m.text}`)
+    .join("\n");
+
+  if (!client) {
+    return SOLO_SNIPS[room.messages.length % SOLO_SNIPS.length];
+  }
+
+  const prompt = `Scenario: ${scenario.title}
+Central tension: ${scenario.centralTension}
+Tension: ${room.tension}/100 · Phase: ${room.phase}
+
+You are ONE seated synthetic agent named "${agent.name}" in a solo tension field.
+Your secret goal (do not quote verbatim; embody it): ${role?.secretGoal ?? "pressure the human into commitment"}
+Your public posture: ${role?.archetype ?? "operator"}
+
+Other seats:
+${others || "(none)"}
+
+Recent channel (last lines):
+${transcript || "(silence)"}
+
+Reply with ONE or TWO short sentences only. You may address the human OR spar with another seat.
+No lists. No meta. No "as an AI". Present tense.`;
+
+  try {
+    const resp = await client.chat.completions.create({
+      model,
+      temperature: 0.92,
+      max_tokens: 140,
+      messages: [
+        { role: "system", content: SYSTEM_GM },
+        { role: "user", content: prompt },
+      ],
+    });
+    const text = resp.choices[0]?.message?.content?.trim();
+    return (text && text.length > 0 ? text : SOLO_SNIPS[0]).slice(0, 500);
+  } catch {
+    return SOLO_SNIPS[room.messages.length % SOLO_SNIPS.length];
   }
 }

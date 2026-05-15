@@ -103,7 +103,7 @@ async function main() {
   await page.goto(`${BASE}/room/${code}`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction(
     () =>
-      /Negotiation channel|Duel channel|Influence chamber/.test(
+      /Negotiation channel|Duel channel|Influence chamber|Multi-agent field/.test(
         document.body?.innerText ?? ""
       ),
     { timeout: 15000 }

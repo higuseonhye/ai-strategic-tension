@@ -18,6 +18,11 @@ const MODE_OPTIONS: {
   disabled?: boolean;
 }[] = [
   {
+    id: "solo",
+    title: "Solo · multi-agent field",
+    body: "You vs several seated AI agents — asymmetric goals; they react to you and each other.",
+  },
+  {
     id: "crisis",
     title: "N:N crisis",
     body: "2–6 players. Alliances, leaks, reversals.",
@@ -44,7 +49,7 @@ export default function LobbyPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [scenarioId, setScenarioId] = useState<ScenarioId>(SCENARIOS[0].id);
-  const [interactionMode, setInteractionMode] = useState<InteractionMode>("crisis");
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>("solo");
   const [aiDuelOpponent, setAiDuelOpponent] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState<"create" | "join" | null>(null);

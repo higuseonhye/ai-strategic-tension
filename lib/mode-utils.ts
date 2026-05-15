@@ -14,3 +14,7 @@ export function humanPlayerCount(room: RoomState): number {
 export function hasAiAdversary(room: RoomState): boolean {
   return room.players.some((p) => p.isAi);
 }
+
+export function isSoloMode(room: RoomState): boolean {
+  return room.interactionMode === "solo";
+}

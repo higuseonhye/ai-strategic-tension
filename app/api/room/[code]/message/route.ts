@@ -38,7 +38,9 @@ export async function POST(
       toPlayerId: body.toPlayerId,
     });
     const { queueDuelAdversaryReplyIfNeeded } = await import("@/lib/duel-reply");
+    const { queueSoloAgentRepliesIfNeeded } = await import("@/lib/solo-reply");
     queueDuelAdversaryReplyIfNeeded(room.code);
+    queueSoloAgentRepliesIfNeeded(room.code);
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed";

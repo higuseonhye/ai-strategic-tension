@@ -12,6 +12,7 @@ import { getScenario } from "./scenarios";
 import { randomRoomCode, shortId } from "./utils";
 import { AI_DUEL_PLAYER_ID } from "./mode-utils";
 import { influenceFrameCopy } from "./influence-copy";
+import { soloFieldFrameCopy } from "./solo-copy";
 
 type GlobalShape = {
   rooms: Map<string, RoomState>;
@@ -148,7 +149,31 @@ export function startGame(code: string) {
     throw new Error(`Need at least ${minP} players for this mode.`);
   }
 
-  if (room.interactionMode === "duel" && room.aiOpponentEnabled) {
+  if (room.interactionMode === "solo") {
+    const humans = room.players.filter((p) => !p.isAi);
+    if (humans.length !== 1) {
+      throw new Error("Solo mode requires exactly one human player (host only).");
+    }
+    if (room.players.some((p) => p.isAi)) {
+      throw new Error("Solo agents are injected only when the session starts.");
+    }
+    const roles = [...scenario.roles].sort(() => Math.random() - 0.5);
+    const human = humans[0]!;
+    human.roleId = roles[0]!.id;
+    for (let i = 1; i < roles.length; i++) {
+      const role = roles[i]!;
+      room.players.push({
+        id: `ate-solo-${shortId()}`,
+        name:
+          role.archetype.length > 26 ? `${role.archetype.slice(0, 24)}…` : role.archetype,
+        joinedAt: Date.now(),
+        lastSeenAt: Date.now(),
+        isHost: false,
+        isAi: true,
+        roleId: role.id,
+      });
+    }
+  } else if (room.interactionMode === "duel" && room.aiOpponentEnabled) {
     if (room.players.length !== 1) {
       throw new Error("AI duel requires exactly one human player in the room.");
     }
@@ -167,10 +192,12 @@ export function startGame(code: string) {
     throw new Error("Duel mode requires exactly 2 human players.");
   }
 
-  const shuffled = [...scenario.roles].sort(() => Math.random() - 0.5);
-  room.players.forEach((p, i) => {
-    p.roleId = shuffled[i % shuffled.length].id;
-  });
+  if (room.interactionMode !== "solo") {
+    const shuffled = [...scenario.roles].sort(() => Math.random() - 0.5);
+    room.players.forEach((p, i) => {
+      p.roleId = shuffled[i % shuffled.length]!.id;
+    });
+  }
 
   room.phase = "negotiation";
   room.round = 1;
@@ -205,6 +232,37 @@ export function startGame(code: string) {
       playerName: "Adversary",
       text: "I'm not here to agree. Speak in stakes, not slogans.",
     });
+  }
+
+  if (room.interactionMode === "solo") {
+    const frame = soloFieldFrameCopy(room.scenarioId);
+    room.events.push({
+      id: shortId(),
+      at: Date.now(),
+      kind: "ultimatum",
+      title: frame.title,
+      body: frame.body,
+      delta: 5,
+    });
+    const ais = room.players.filter((p) => p.isAi);
+    if (ais[0]) {
+      room.messages.push({
+        id: shortId(),
+        at: Date.now(),
+        playerId: ais[0].id,
+        playerName: ais[0].name,
+        text: "You're alone at the table. That doesn't mean uncontested — watch who bargains with whom.",
+      });
+    }
+    if (ais[1]) {
+      room.messages.push({
+        id: shortId(),
+        at: Date.now(),
+        playerId: ais[1].id,
+        playerName: ais[1].name,
+        text: "Cut the courtesy. Name what you need before this fragments into private wars.",
+      });
+    }
   }
 
   emit(code, room);
@@ -309,12 +367,14 @@ export function purgeStale() {
 }
 
 function maxPlayers(room: RoomState): number {
+  if (room.interactionMode === "solo") return 1;
   if (room.interactionMode === "duel" && room.aiOpponentEnabled) return 1;
   if (room.interactionMode === "duel") return 2;
   return 6;
 }
 
 function minPlayers(room: RoomState): number {
+  if (room.interactionMode === "solo") return 1;
   if (room.interactionMode === "duel" && room.aiOpponentEnabled) return 1;
   return 2;
 }

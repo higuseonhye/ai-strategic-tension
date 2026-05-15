@@ -28,6 +28,7 @@ const PHASE_LABEL: Record<Phase, string> = {
 };
 
 const MODE_LABEL: Record<InteractionMode, string> = {
+  solo: "Solo · multi-agent",
   crisis: "N:N crisis",
   duel: "Strategic duel",
   influence: "1:N influence",
@@ -116,7 +117,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           </div>
           <PlayerCount
             players={room.players}
-            max={room.interactionMode === "duel" ? 2 : 6}
+            max={room.interactionMode === "solo" ? 1 : room.interactionMode === "duel" ? 2 : 6}
           />
         </div>
       </header>
@@ -156,13 +157,15 @@ function LobbyView({
 }) {
   const [starting, setStarting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const cap = room.interactionMode === "duel" ? 2 : 6;
+  const cap = room.interactionMode === "solo" ? 1 : room.interactionMode === "duel" ? 2 : 6;
   const canStart =
-    room.interactionMode === "duel" && room.aiOpponentEnabled
+    room.interactionMode === "solo"
       ? room.players.length === 1
-      : room.interactionMode === "duel"
-        ? room.players.length === 2
-        : room.players.length >= 2;
+      : room.interactionMode === "duel" && room.aiOpponentEnabled
+        ? room.players.length === 1
+        : room.interactionMode === "duel"
+          ? room.players.length === 2
+          : room.players.length >= 2;
 
   async function start() {
     setStarting(true);
@@ -189,9 +192,11 @@ function LobbyView({
           <CardHeader>
             <CardTitle>{scenarioTitle} — pre-briefing</CardTitle>
             <CardDescription>
-              Share the room code with up to {cap - 1} other player
-              {cap > 2 ? "s" : ""}. Roles are assigned the moment the host
-              starts the session, and they are irreversible.
+              {room.interactionMode === "solo"
+                ? "Solo field: you are the only human. Synthetic seats fill every other role when the host starts. Assignments are irreversible."
+                : `Share the room code with up to ${cap - 1} other player${
+                    cap > 2 ? "s" : ""
+                  }. Roles are assigned the moment the host starts the session, and they are irreversible.`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -201,9 +206,11 @@ function LobbyView({
               </p>
               <p className="mt-1 font-mono text-5xl tracking-[0.18em]">{code}</p>
               <p className="mt-3 text-xs text-mutedForeground">
-                {room.interactionMode === "duel"
-                  ? "Duel mode: exactly two humans. No spectators."
-                  : "The room is live once two players are present. Start with as few as two — every scenario scales."}
+                {room.interactionMode === "solo"
+                  ? "Solo mode: no other humans — multi-agent synthetic seats appear on start."
+                  : room.interactionMode === "duel"
+                    ? "Duel mode: exactly two humans, or one human vs AI. No spectators."
+                    : "The room is live once two players are present. Start with as few as two — every scenario scales."}
               </p>
             </div>
           </CardContent>
@@ -245,11 +252,13 @@ function LobbyView({
             <CardTitle>Players in this room</CardTitle>
             <CardDescription>
               {room.players.length}/{cap} —{" "}
-              {room.interactionMode === "duel" && room.aiOpponentEnabled
-                ? "need exactly 1 human; AI joins on start."
-                : room.interactionMode === "duel"
-                  ? "need exactly 2 humans."
-                  : "minimum 2 to start."}
+              {room.interactionMode === "solo"
+                ? "solo field — you + synthetic seats on start."
+                : room.interactionMode === "duel" && room.aiOpponentEnabled
+                  ? "need exactly 1 human; AI joins on start."
+                  : room.interactionMode === "duel"
+                    ? "need exactly 2 humans."
+                    : "minimum 2 to start."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -385,11 +394,13 @@ function PlayView({
     r.phase === "endgame" || r.phase === "decision" || r.tension >= 80;
 
   const channelTitle =
-    r.interactionMode === "duel"
-      ? "Duel channel"
-      : r.interactionMode === "influence"
-        ? "Influence chamber"
-        : "Negotiation channel";
+    r.interactionMode === "solo"
+      ? "Multi-agent field"
+      : r.interactionMode === "duel"
+        ? "Duel channel"
+        : r.interactionMode === "influence"
+          ? "Influence chamber"
+          : "Negotiation channel";
 
   const decisionPanel = showDecisionPanel && (
     <Card className={cn(r.tension >= 90 && "ring-2 ring-primary/40 animate-pulseGlow")}>
